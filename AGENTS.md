@@ -12,32 +12,31 @@ a ChatGPT-style voice input button in the chat composer with transcription by
 - whisper.cpp (single GGML model), or
 - any OpenAI-compatible transcription API.
 
-The plugin consists of two plain-JavaScript function bodies:
-`packages/<latest-pkg>/host.js` (Node side) and `.../client.js` (browser side).
+The plugin consists of two plain-JavaScript function bodies at the repository
+root: `host.js` (Node side) and `client.js` (browser side).
 
 ## Installing into a running DSH session
 
 Dynamic plugins are installed with the DSH dynamic-plugin tools inside a live
 session. An agent should do exactly this:
 
-1. Determine the latest version: the numerically highest `packages/pkg-*/`
-   directory (read the file list; do not guess).
-2. Read `packages/<latest>/host.js` and `packages/<latest>/client.js`.
-3. Call `cordis_define` with:
+1. Read `host.js` and `client.js` from the repository root (they are always
+   the current version; released versions are pinned by git tags).
+2. Call `cordis_define` with:
    - `plugin: { kind: 'new', idPrefix: 'voice' }`,
    - `name: 'dsh-voice'`,
    - `purpose`: one sentence, e.g. `Voice input with local/API transcription for the DSH Web GUI.`,
    - `code.host` = the **entire contents** of `host.js` (it is a function body
      that returns a Cordis Plugin object — do not wrap, trim, or transform it),
    - `code.client` = the **entire contents** of `client.js`.
-4. The tool returns `pluginId` and `packageId`. Call `cordis_run` with
+3. The tool returns `pluginId` and `packageId`. Call `cordis_run` with
    `mode: 'run'`.
-5. `awaiting-approval` means the user must approve the Run card in the Web GUI.
+4. `awaiting-approval` means the user must approve the Run card in the Web GUI.
    Tell the user to tick it (double tick also authorizes future updates of the
    same plugin). **Never retry after a rejection.**
-6. `starting` is asynchronous — wait for the system to report the final result;
+5. `starting` is asynchronous — wait for the system to report the final result;
    do not poll or claim success early.
-7. On a technical failure: read the failed package's diagnostics with
+6. On a technical failure: read the failed package's diagnostics with
    `cordis_inspect_self(pluginId, packageId)`, fix the **same plugin** by
    appending a new package via `cordis_define` with
    `plugin: { kind: 'existing', pluginId }`, and run it with `mode: 'update'`
@@ -96,13 +95,16 @@ Constraints that must be preserved when editing the code:
 | Engine download → 404 | No release yet: push the repo and create tag `v0.1.0` (CI builds engines). Or point **Advanced → Engine path** at an existing `transcribe-cli`. |
 | "engine is not installed" on transcription | Same as above; the plugin auto-searches `$HOME` first — check the engine path shown in settings. |
 | Model download error | Verify the model id in `models.json`/catalog; HF `resolve/main/<file>` must return 200. Gated models may need a Hugging Face token. |
-| Long dictation loses text | Fixed by 20 s chunking (pkg-9+). Models have ~25 s windows; do not remove the chunking branch in `voice/transcribe`. |
+| Long dictation loses text | Fixed by 20 s chunking (since v0.1.0). Models have ~25 s windows; do not remove the chunking branch in `voice/transcribe`. |
 | Settings change lost after restart | Dynamic plugin state is in-memory by design; re-save after reinstall. |
 
 ## Repository conventions
 
-- `packages/pkg-N/` holds immutable source snapshots; never edit an existing
-  `pkg-N` — create `pkg-N+1` when the plugin changes, and point README at it.
+- `host.js` / `client.js` at the repository root are always the current
+  version; released versions are pinned by git tags (`v0.1.1`, …). Do not add
+  per-version directories — the `pkg-N` numbering is DSH-runtime internal
+  (immutable package versions inside a live session) and does not belong in
+  this repository.
 - `models.json` is the human-readable model catalog; the inline `CATALOG` table
   in `host.js` must stay in sync when models are added.
 - UI strings and comments in code are English.

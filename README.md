@@ -31,8 +31,8 @@ history fades left into a dim dotted baseline (like ChatGPT's voice mode).
 ### Quick install (agent or human, in a DSH session)
 
 The recommended way is to let an AI agent inside a DSH session do it — see
-[AGENTS.md](AGENTS.md). In short, it reads the latest `packages/pkg-*/host.js`
-and `client.js` and registers them through the dynamic-plugin tools:
+[AGENTS.md](AGENTS.md). In short, it reads `host.js` and `client.js` from this repository and registers
+them through the dynamic-plugin tools:
 
 ```
 cordis_define({
@@ -144,10 +144,8 @@ Realtime — 1.7× realtime (20 s of Russian audio), excellent quality.
 ## Repository layout
 
 ```
-packages/
-  pkg-9/
-    host.js    — Host half (RPC, providers, ffmpeg, downloads, chunking)
-    client.js  — Client half (button, recording pill, settings)
+host.js        — Host half (RPC, providers, ffmpeg, downloads, chunking)
+client.js      — Client half (button, recording pill, settings)
 .github/workflows/build-engine.yml — CI builds the engine for 5 platforms
 models.json    — model catalog (source for the inline table in host.js)
 AGENTS.md      — agent install/update instructions
@@ -155,8 +153,11 @@ README.md      — this document
 ```
 
 `host.js` / `client.js` are the function bodies passed to `cordis_define`
-(`code.host` / `code.client`) — see the Installation section above. The
-`packages/pkg-N` dirs are immutable snapshots of released plugin versions.
+(`code.host` / `code.client`) — see the Installation section above. The sources
+at the repository root are always the current version; released versions are
+pinned by git tags (`v0.1.1`, …). The `pkg-N` numbering belongs to the DSH
+runtime (immutable package versions inside a live session) and intentionally
+does not leak into this repository.
 
 ## Testing
 
