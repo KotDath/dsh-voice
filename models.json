@@ -1,0 +1,911 @@
+[
+ {
+  "id": "handy-computer/canary-180m-flash-gguf/canary-180m-flash-Q8_0.gguf",
+  "name": "Canary 180M Flash",
+  "repo": "handy-computer/canary-180m-flash-gguf",
+  "file": "canary-180m-flash-Q8_0.gguf",
+  "size": 218447552,
+  "revision": "b147f9dc52b59f0998e410540a84727bd86457fd",
+  "recommended": true,
+  "langs": [
+   "en",
+   "de",
+   "es",
+   "fr"
+  ]
+ },
+ {
+  "id": "handy-computer/cohere-transcribe-03-2026-gguf/cohere-transcribe-03-2026-Q5_K_M.gguf",
+  "name": "Cohere Transcribe",
+  "repo": "handy-computer/cohere-transcribe-03-2026-gguf",
+  "file": "cohere-transcribe-03-2026-Q5_K_M.gguf",
+  "size": 1770270208,
+  "revision": "dfa4adebb64f3076b7b6b90b721275cc069cb421",
+  "recommended": true,
+  "langs": [
+   "en",
+   "fr",
+   "de",
+   "es",
+   "it"
+  ]
+ },
+ {
+  "id": "handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf/nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf",
+  "name": "Nemotron Streaming 3.5",
+  "repo": "handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf",
+  "file": "nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf",
+  "size": 751094240,
+  "revision": "6d44e540bc31b0de1dbe174a3cea87f53a7f22fb",
+  "recommended": true,
+  "langs": [
+   "en",
+   "es",
+   "fr",
+   "it",
+   "pt"
+  ]
+ },
+ {
+  "id": "handy-computer/parakeet-unified-en-0.6b-gguf/parakeet-unified-en-0.6b-Q8_0.gguf",
+  "name": "Parakeet Unified EN 0.6B",
+  "repo": "handy-computer/parakeet-unified-en-0.6b-gguf",
+  "file": "parakeet-unified-en-0.6b-Q8_0.gguf",
+  "size": 731357568,
+  "revision": "7e948f21b7bdbac698d3318db9d350f1096f3b6c",
+  "recommended": true,
+  "langs": [
+   "en"
+  ]
+ },
+ {
+  "id": "handy-computer/whisper-medium-gguf/whisper-medium-Q8_0.gguf",
+  "name": "Whisper Medium",
+  "repo": "handy-computer/whisper-medium-gguf",
+  "file": "whisper-medium-Q8_0.gguf",
+  "size": 831538144,
+  "revision": "ec78f06fded51aa82cde751678b78f76f78c8b7f",
+  "recommended": true,
+  "langs": [
+   "en",
+   "zh",
+   "de",
+   "es",
+   "ru"
+  ]
+ },
+ {
+  "id": "handy-computer/Breeze-ASR-25-gguf/Breeze-ASR-25-Q5_K_M.gguf",
+  "name": "Breeze-ASR-25",
+  "repo": "handy-computer/Breeze-ASR-25-gguf",
+  "file": "Breeze-ASR-25-Q5_K_M.gguf",
+  "size": 1160366080,
+  "revision": "1e5e8d7295110e1e14e305e9cf7411d82711beaa",
+  "recommended": false,
+  "langs": [
+   "zh",
+   "en"
+  ]
+ },
+ {
+  "id": "handy-computer/canary-1b-gguf/canary-1b-Q5_K_M.gguf",
+  "name": "Canary 1B",
+  "repo": "handy-computer/canary-1b-gguf",
+  "file": "canary-1b-Q5_K_M.gguf",
+  "size": 837694272,
+  "revision": "f2eaa93b2221b6a28e5a00111a3e93f62964dff3",
+  "recommended": false,
+  "langs": [
+   "en",
+   "de",
+   "es",
+   "fr"
+  ]
+ },
+ {
+  "id": "handy-computer/canary-1b-flash-gguf/canary-1b-flash-Q5_K_M.gguf",
+  "name": "Canary 1B Flash",
+  "repo": "handy-computer/canary-1b-flash-gguf",
+  "file": "canary-1b-flash-Q5_K_M.gguf",
+  "size": 769563424,
+  "revision": "b427664769b93c021df108a2fa8bfb858ae236c1",
+  "recommended": false,
+  "langs": [
+   "en",
+   "de",
+   "es",
+   "fr"
+  ]
+ },
+ {
+  "id": "handy-computer/canary-1b-v2-gguf/canary-1b-v2-Q5_K_M.gguf",
+  "name": "Canary 1B v2",
+  "repo": "handy-computer/canary-1b-v2-gguf",
+  "file": "canary-1b-v2-Q5_K_M.gguf",
+  "size": 836664032,
+  "revision": "58d13c2c0102229aad45f7e19a77ddc42b41dd9a",
+  "recommended": false,
+  "langs": [
+   "bg",
+   "hr",
+   "cs",
+   "da",
+   "nl"
+  ]
+ },
+ {
+  "id": "handy-computer/canary-qwen-2.5b-gguf/canary-qwen-2.5b-Q5_K_M.gguf",
+  "name": "Canary-Qwen 2.5B",
+  "repo": "handy-computer/canary-qwen-2.5b-gguf",
+  "file": "canary-qwen-2.5b-Q5_K_M.gguf",
+  "size": 1983729024,
+  "revision": "3370d4e2f28cc70eea79dfc9f2f43fb91eef3163",
+  "recommended": false,
+  "langs": [
+   "en"
+  ]
+ },
+ {
+  "id": "handy-computer/cohere-transcribe-arabic-07-2026-gguf/cohere-transcribe-arabic-07-2026-Q5_K_M.gguf",
+  "name": "Cohere Transcribe",
+  "repo": "handy-computer/cohere-transcribe-arabic-07-2026-gguf",
+  "file": "cohere-transcribe-arabic-07-2026-Q5_K_M.gguf",
+  "size": 1770270112,
+  "revision": "715cbe09ca9b60fc1e497db1e4478fa9fcf4ac21",
+  "recommended": false,
+  "langs": [
+   "ar",
+   "en"
+  ]
+ },
+ {
+  "id": "handy-computer/Fun-ASR-Nano-2512-gguf/Fun-ASR-Nano-2512-Q8_0.gguf",
+  "name": "Fun-ASR Nano",
+  "repo": "handy-computer/Fun-ASR-Nano-2512-gguf",
+  "file": "Fun-ASR-Nano-2512-Q8_0.gguf",
+  "size": 891270912,
+  "revision": "30360f003f99929c1e25c3f6222d02eccb04663c",
+  "recommended": false,
+  "langs": [
+   "zh",
+   "en",
+   "ja"
+  ]
+ },
+ {
+  "id": "handy-computer/Fun-ASR-MLT-Nano-2512-gguf/Fun-ASR-MLT-Nano-2512-Q8_0.gguf",
+  "name": "Fun-ASR Nano Multilingual",
+  "repo": "handy-computer/Fun-ASR-MLT-Nano-2512-gguf",
+  "file": "Fun-ASR-MLT-Nano-2512-Q8_0.gguf",
+  "size": 891271232,
+  "revision": "0b8f9c7bc545a219658aeb1dd4eeaa55d1cf89f3",
+  "recommended": false,
+  "langs": [
+   "zh",
+   "en",
+   "yue",
+   "ja",
+   "ko"
+  ]
+ },
+ {
+  "id": "handy-computer/gigaam-v3-ctc-gguf/gigaam-v3-ctc-Q8_0.gguf",
+  "name": "GigaAM v3 CTC",
+  "repo": "handy-computer/gigaam-v3-ctc-gguf",
+  "file": "gigaam-v3-ctc-Q8_0.gguf",
+  "size": 271803328,
+  "revision": "c3c611444004820c21c3b68312a41c83c1e4813b",
+  "recommended": false,
+  "langs": [
+   "ru"
+  ]
+ },
+ {
+  "id": "handy-computer/gigaam-v3-e2e-ctc-gguf/gigaam-v3-e2e-ctc-Q8_0.gguf",
+  "name": "GigaAM v3 E2E-CTC",
+  "repo": "handy-computer/gigaam-v3-e2e-ctc-gguf",
+  "file": "gigaam-v3-e2e-ctc-Q8_0.gguf",
+  "size": 272151136,
+  "revision": "075dff81f843cf23d22b4ce943ffdc4dd8650cd7",
+  "recommended": false,
+  "langs": [
+   "ru"
+  ]
+ },
+ {
+  "id": "handy-computer/gigaam-v3-e2e-rnnt-gguf/gigaam-v3-e2e-rnnt-Q8_0.gguf",
+  "name": "GigaAM v3 E2E-RNN-T",
+  "repo": "handy-computer/gigaam-v3-e2e-rnnt-gguf",
+  "file": "gigaam-v3-e2e-rnnt-Q8_0.gguf",
+  "size": 273724832,
+  "revision": "f719d70812344f4d0fb8c11c0887b190501a7465",
+  "recommended": false,
+  "langs": [
+   "ru"
+  ]
+ },
+ {
+  "id": "handy-computer/gigaam-v3-rnnt-gguf/gigaam-v3-rnnt-Q8_0.gguf",
+  "name": "GigaAM v3 RNN-T",
+  "repo": "handy-computer/gigaam-v3-rnnt-gguf",
+  "file": "gigaam-v3-rnnt-Q8_0.gguf",
+  "size": 273022880,
+  "revision": "8f30356b4607ae2d79353ab7dc9e5eea6dc46b48",
+  "recommended": false,
+  "langs": [
+   "ru"
+  ]
+ },
+ {
+  "id": "handy-computer/granite-4.0-1b-speech-gguf/granite-4.0-1b-speech-Q5_K_M.gguf",
+  "name": "Granite Speech 4.0 1B",
+  "repo": "handy-computer/granite-4.0-1b-speech-gguf",
+  "file": "granite-4.0-1b-speech-Q5_K_M.gguf",
+  "size": 1829704544,
+  "revision": "5899f364fb5bc4bae48c54dec8489aff40b70253",
+  "recommended": false,
+  "langs": [
+   "en",
+   "fr",
+   "de",
+   "es",
+   "pt"
+  ]
+ },
+ {
+  "id": "handy-computer/granite-speech-4.1-2b-gguf/granite-speech-4.1-2b-Q5_K_M.gguf",
+  "name": "Granite Speech 4.1 2B",
+  "repo": "handy-computer/granite-speech-4.1-2b-gguf",
+  "file": "granite-speech-4.1-2b-Q5_K_M.gguf",
+  "size": 1829704544,
+  "revision": "58e7710fd7039ded5a185668eef5f71ca5d9d919",
+  "recommended": false,
+  "langs": [
+   "en",
+   "fr",
+   "de",
+   "es",
+   "pt"
+  ]
+ },
+ {
+  "id": "handy-computer/granite-speech-4.1-2b-nar-gguf/granite-speech-4.1-2b-nar-Q5_K_M.gguf",
+  "name": "Granite Speech 4.1 2B NAR",
+  "repo": "handy-computer/granite-speech-4.1-2b-nar-gguf",
+  "file": "granite-speech-4.1-2b-nar-Q5_K_M.gguf",
+  "size": 1782089344,
+  "revision": "ca53e8273416eb7e888f19bcebbcb9b6ab3edc17",
+  "recommended": false,
+  "langs": [
+   "en",
+   "fr",
+   "de",
+   "es",
+   "pt"
+  ]
+ },
+ {
+  "id": "handy-computer/granite-speech-4.1-2b-plus-gguf/granite-speech-4.1-2b-plus-Q5_K_M.gguf",
+  "name": "Granite Speech 4.1 2B Plus",
+  "repo": "handy-computer/granite-speech-4.1-2b-plus-gguf",
+  "file": "granite-speech-4.1-2b-plus-Q5_K_M.gguf",
+  "size": 1691297088,
+  "revision": "f73a59df77fef89ac0a34bc539d09d756793b065",
+  "recommended": false,
+  "langs": [
+   "en",
+   "fr",
+   "de",
+   "es",
+   "pt"
+  ]
+ },
+ {
+  "id": "handy-computer/medasr-gguf/medasr-Q8_0.gguf",
+  "name": "MedASR",
+  "repo": "handy-computer/medasr-gguf",
+  "file": "medasr-Q8_0.gguf",
+  "size": 127712448,
+  "revision": "6f481df085bb50ae922cea918fb578e664237126",
+  "recommended": false,
+  "langs": [
+   "en"
+  ]
+ },
+ {
+  "id": "handy-computer/moonshine-base-gguf/moonshine-base-Q8_0.gguf",
+  "name": "Moonshine Base",
+  "repo": "handy-computer/moonshine-base-gguf",
+  "file": "moonshine-base-Q8_0.gguf",
+  "size": 77476480,
+  "revision": "3ef112378a8cf46ac8b278d9bfa2d15c846704b8",
+  "recommended": false,
+  "langs": [
+   "en"
+  ]
+ },
+ {
+  "id": "handy-computer/moonshine-base-ar-gguf/moonshine-base-ar-Q8_0.gguf",
+  "name": "Moonshine Base (Arabic)",
+  "repo": "handy-computer/moonshine-base-ar-gguf",
+  "file": "moonshine-base-ar-Q8_0.gguf",
+  "size": 77476480,
+  "revision": "1ae85af52b16eac8bcebda0287e6195ed1956e86",
+  "recommended": false,
+  "langs": [
+   "ar"
+  ]
+ },
+ {
+  "id": "handy-computer/moonshine-base-zh-gguf/moonshine-base-zh-Q8_0.gguf",
+  "name": "Moonshine Base (Chinese)",
+  "repo": "handy-computer/moonshine-base-zh-gguf",
+  "file": "moonshine-base-zh-Q8_0.gguf",
+  "size": 77476480,
+  "revision": "64385c681d79767be73ce8591b4609854ac750c9",
+  "recommended": false,
+  "langs": [
+   "zh"
+  ]
+ },
+ {
+  "id": "handy-computer/moonshine-base-ja-gguf/moonshine-base-ja-Q8_0.gguf",
+  "name": "Moonshine Base (Japanese)",
+  "repo": "handy-computer/moonshine-base-ja-gguf",
+  "file": "moonshine-base-ja-Q8_0.gguf",
+  "size": 77476480,
+  "revision": "aac5cfff17ae28b6f17ae790a3e309ae0ca5911c",
+  "recommended": false,
+  "langs": [
+   "ja"
+  ]
+ },
+ {
+  "id": "handy-computer/moonshine-base-ko-gguf/moonshine-base-ko-Q8_0.gguf",
+  "name": "Moonshine Base (Korean)",
+  "repo": "handy-computer/moonshine-base-ko-gguf",
+  "file": "moonshine-base-ko-Q8_0.gguf",
+  "size": 77476480,
+  "revision": "03813c71abe85b40cd0671d3cfa420e831d7e333",
+  "recommended": false,
+  "langs": [
+   "ko"
+  ]
+ },
+ {
+  "id": "handy-computer/moonshine-base-uk-gguf/moonshine-base-uk-Q8_0.gguf",
+  "name": "Moonshine Base (Ukrainian)",
+  "repo": "handy-computer/moonshine-base-uk-gguf",
+  "file": "moonshine-base-uk-Q8_0.gguf",
+  "size": 77476512,
+  "revision": "d6ec586909c5209c0c17243dc4f5e55164f85dfb",
+  "recommended": false,
+  "langs": [
+   "uk"
+  ]
+ },
+ {
+  "id": "handy-computer/moonshine-base-vi-gguf/moonshine-base-vi-Q8_0.gguf",
+  "name": "Moonshine Base (Vietnamese)",
+  "repo": "handy-computer/moonshine-base-vi-gguf",
+  "file": "moonshine-base-vi-Q8_0.gguf",
+  "size": 77476512,
+  "revision": "76ccec93f5854ae16d2dab72d5b762fe10c0df81",
+  "recommended": false,
+  "langs": [
+   "vi"
+  ]
+ },
+ {
+  "id": "handy-computer/moonshine-streaming-medium-gguf/moonshine-streaming-medium-Q8_0.gguf",
+  "name": "Moonshine Streaming Medium",
+  "repo": "handy-computer/moonshine-streaming-medium-gguf",
+  "file": "moonshine-streaming-medium-Q8_0.gguf",
+  "size": 295793568,
+  "revision": "c722a9455a40a1844c3d25267dc84eff61d8dd84",
+  "recommended": false,
+  "langs": [
+   "en"
+  ]
+ },
+ {
+  "id": "handy-computer/moonshine-streaming-small-gguf/moonshine-streaming-small-Q8_0.gguf",
+  "name": "Moonshine Streaming Small",
+  "repo": "handy-computer/moonshine-streaming-small-gguf",
+  "file": "moonshine-streaming-small-Q8_0.gguf",
+  "size": 198506848,
+  "revision": "41444173ed8210852a883e046fadcfba3e7bfbae",
+  "recommended": false,
+  "langs": [
+   "en"
+  ]
+ },
+ {
+  "id": "handy-computer/moonshine-streaming-tiny-gguf/moonshine-streaming-tiny-Q8_0.gguf",
+  "name": "Moonshine Streaming Tiny",
+  "repo": "handy-computer/moonshine-streaming-tiny-gguf",
+  "file": "moonshine-streaming-tiny-Q8_0.gguf",
+  "size": 50462816,
+  "revision": "85ddff612fa3a2cf40b2f745abcfa90ef82f293b",
+  "recommended": false,
+  "langs": [
+   "en"
+  ]
+ },
+ {
+  "id": "handy-computer/moonshine-tiny-gguf/moonshine-tiny-Q8_0.gguf",
+  "name": "Moonshine Tiny",
+  "repo": "handy-computer/moonshine-tiny-gguf",
+  "file": "moonshine-tiny-Q8_0.gguf",
+  "size": 35466912,
+  "revision": "f5c11906eba3f44cf305eed30feb9cbfb0b4b9d0",
+  "recommended": false,
+  "langs": [
+   "en"
+  ]
+ },
+ {
+  "id": "handy-computer/moonshine-tiny-ar-gguf/moonshine-tiny-ar-Q8_0.gguf",
+  "name": "Moonshine Tiny (Arabic)",
+  "repo": "handy-computer/moonshine-tiny-ar-gguf",
+  "file": "moonshine-tiny-ar-Q8_0.gguf",
+  "size": 35466944,
+  "revision": "2360cb6893cb523da51875eaffc8050d2ca7b56d",
+  "recommended": false,
+  "langs": [
+   "ar"
+  ]
+ },
+ {
+  "id": "handy-computer/moonshine-tiny-zh-gguf/moonshine-tiny-zh-Q8_0.gguf",
+  "name": "Moonshine Tiny (Chinese)",
+  "repo": "handy-computer/moonshine-tiny-zh-gguf",
+  "file": "moonshine-tiny-zh-Q8_0.gguf",
+  "size": 35466944,
+  "revision": "2aca379ba0dc978d878b84b76231d5ba5550e738",
+  "recommended": false,
+  "langs": [
+   "zh"
+  ]
+ },
+ {
+  "id": "handy-computer/moonshine-tiny-ja-gguf/moonshine-tiny-ja-Q8_0.gguf",
+  "name": "Moonshine Tiny (Japanese)",
+  "repo": "handy-computer/moonshine-tiny-ja-gguf",
+  "file": "moonshine-tiny-ja-Q8_0.gguf",
+  "size": 35466944,
+  "revision": "627aae63193d6c47cbdf316346119dcdc65d9b0d",
+  "recommended": false,
+  "langs": [
+   "ja"
+  ]
+ },
+ {
+  "id": "handy-computer/moonshine-tiny-ko-gguf/moonshine-tiny-ko-Q8_0.gguf",
+  "name": "Moonshine Tiny (Korean)",
+  "repo": "handy-computer/moonshine-tiny-ko-gguf",
+  "file": "moonshine-tiny-ko-Q8_0.gguf",
+  "size": 35466944,
+  "revision": "b858a303948b69c8b2442f700e936a07ba5f64da",
+  "recommended": false,
+  "langs": [
+   "ko"
+  ]
+ },
+ {
+  "id": "handy-computer/moonshine-tiny-uk-gguf/moonshine-tiny-uk-Q8_0.gguf",
+  "name": "Moonshine Tiny (Ukrainian)",
+  "repo": "handy-computer/moonshine-tiny-uk-gguf",
+  "file": "moonshine-tiny-uk-Q8_0.gguf",
+  "size": 35466944,
+  "revision": "b4c991eb4223caa4de770843185476b0c86056b4",
+  "recommended": false,
+  "langs": [
+   "uk"
+  ]
+ },
+ {
+  "id": "handy-computer/moonshine-tiny-vi-gguf/moonshine-tiny-vi-Q8_0.gguf",
+  "name": "Moonshine Tiny (Vietnamese)",
+  "repo": "handy-computer/moonshine-tiny-vi-gguf",
+  "file": "moonshine-tiny-vi-Q8_0.gguf",
+  "size": 35466944,
+  "revision": "d97be0111a74a9058689beacc05b38969d2b68aa",
+  "recommended": false,
+  "langs": [
+   "vi"
+  ]
+ },
+ {
+  "id": "handy-computer/multitalker-parakeet-streaming-0.6b-v1-gguf/multitalker-parakeet-streaming-0.6b-v1-Q8_0.gguf",
+  "name": "Multitalker Parakeet Streaming EN",
+  "repo": "handy-computer/multitalker-parakeet-streaming-0.6b-v1-gguf",
+  "file": "multitalker-parakeet-streaming-0.6b-v1-Q8_0.gguf",
+  "size": 734123712,
+  "revision": "0314bc0d2f4be9a0d79fa5eeb36ad1f3962cfcbb",
+  "recommended": false,
+  "langs": [
+   "en"
+  ]
+ },
+ {
+  "id": "handy-computer/nemotron-speech-streaming-en-0.6b-gguf/nemotron-speech-streaming-en-0.6b-Q8_0.gguf",
+  "name": "Nemotron Speech Streaming EN",
+  "repo": "handy-computer/nemotron-speech-streaming-en-0.6b-gguf",
+  "file": "nemotron-speech-streaming-en-0.6b-Q8_0.gguf",
+  "size": 729650176,
+  "revision": "7d9b719206789e4068d87c6398262ab4dfd4e45d",
+  "recommended": false,
+  "langs": [
+   "en"
+  ]
+ },
+ {
+  "id": "handy-computer/parakeet-ctc-0.6b-gguf/parakeet-ctc-0.6b-Q8_0.gguf",
+  "name": "Parakeet CTC 0.6B",
+  "repo": "handy-computer/parakeet-ctc-0.6b-gguf",
+  "file": "parakeet-ctc-0.6b-Q8_0.gguf",
+  "size": 722271424,
+  "revision": "cdc56f0467ec675a9509a46ef2e83f4c9e49af94",
+  "recommended": false,
+  "langs": [
+   "en"
+  ]
+ },
+ {
+  "id": "handy-computer/parakeet-ctc-1.1b-gguf/parakeet-ctc-1.1b-Q5_K_M.gguf",
+  "name": "Parakeet CTC 1.1B",
+  "repo": "handy-computer/parakeet-ctc-1.1b-gguf",
+  "file": "parakeet-ctc-1.1b-Q5_K_M.gguf",
+  "size": 928584736,
+  "revision": "a9607fbeb480b4a66a3e8bd77efc490e8410cdd4",
+  "recommended": false,
+  "langs": [
+   "en"
+  ]
+ },
+ {
+  "id": "handy-computer/parakeet-rnnt-0.6b-gguf/parakeet-rnnt-0.6b-Q8_0.gguf",
+  "name": "Parakeet RNN-T 0.6B",
+  "repo": "handy-computer/parakeet-rnnt-0.6b-gguf",
+  "file": "parakeet-rnnt-0.6b-Q8_0.gguf",
+  "size": 729687456,
+  "revision": "6001ebcc1c64dd821cf70b7b4ffdd4d18097760a",
+  "recommended": false,
+  "langs": [
+   "en"
+  ]
+ },
+ {
+  "id": "handy-computer/parakeet-rnnt-1.1b-gguf/parakeet-rnnt-1.1b-Q5_K_M.gguf",
+  "name": "Parakeet RNN-T 1.1B",
+  "repo": "handy-computer/parakeet-rnnt-1.1b-gguf",
+  "file": "parakeet-rnnt-1.1b-Q5_K_M.gguf",
+  "size": 935755008,
+  "revision": "58c3f5108699a6aba6d6dbb21f8fa153fe7d3f62",
+  "recommended": false,
+  "langs": [
+   "en"
+  ]
+ },
+ {
+  "id": "handy-computer/parakeet-tdt-0.6b-v2-gguf/parakeet-tdt-0.6b-v2-Q8_0.gguf",
+  "name": "Parakeet TDT 0.6B v2",
+  "repo": "handy-computer/parakeet-tdt-0.6b-v2-gguf",
+  "file": "parakeet-tdt-0.6b-v2-Q8_0.gguf",
+  "size": 729574912,
+  "revision": "07cee0616125a08ef619729bb47f40ef747e4bc4",
+  "recommended": false,
+  "langs": [
+   "en"
+  ]
+ },
+ {
+  "id": "handy-computer/parakeet-tdt-0.6b-v3-gguf/parakeet-tdt-0.6b-v3-Q8_0.gguf",
+  "name": "Parakeet TDT 0.6B v3",
+  "repo": "handy-computer/parakeet-tdt-0.6b-v3-gguf",
+  "file": "parakeet-tdt-0.6b-v3-Q8_0.gguf",
+  "size": 739508576,
+  "revision": "85ac09ea12fc4b1112fa76810059364bc6adc9de",
+  "recommended": false,
+  "langs": [
+   "bg",
+   "hr",
+   "cs",
+   "da",
+   "nl"
+  ]
+ },
+ {
+  "id": "handy-computer/parakeet-tdt-1.1b-gguf/parakeet-tdt-1.1b-Q5_K_M.gguf",
+  "name": "Parakeet TDT 1.1B",
+  "repo": "handy-computer/parakeet-tdt-1.1b-gguf",
+  "file": "parakeet-tdt-1.1b-Q5_K_M.gguf",
+  "size": 935758496,
+  "revision": "8c21810615694c53a4f4745996190fcca880f8e5",
+  "recommended": false,
+  "langs": [
+   "en"
+  ]
+ },
+ {
+  "id": "handy-computer/parakeet-tdt_ctc-1.1b-gguf/parakeet-tdt_ctc-1.1b-Q5_K_M.gguf",
+  "name": "Parakeet TDT-CTC 1.1B",
+  "repo": "handy-computer/parakeet-tdt_ctc-1.1b-gguf",
+  "file": "parakeet-tdt_ctc-1.1b-Q5_K_M.gguf",
+  "size": 935758080,
+  "revision": "f1ea20171bfb7a1741e8b695d02e0a9bb2855996",
+  "recommended": false,
+  "langs": [
+   "en"
+  ]
+ },
+ {
+  "id": "handy-computer/parakeet-tdt_ctc-110m-gguf/parakeet-tdt_ctc-110m-Q8_0.gguf",
+  "name": "Parakeet TDT-CTC 110M",
+  "repo": "handy-computer/parakeet-tdt_ctc-110m-gguf",
+  "file": "parakeet-tdt_ctc-110m-Q8_0.gguf",
+  "size": 135373280,
+  "revision": "9d66d34f9e1594075c5dd72c90c0f4c321b29f21",
+  "recommended": false,
+  "langs": [
+   "en"
+  ]
+ },
+ {
+  "id": "handy-computer/Qwen3-ASR-0.6B-gguf/Qwen3-ASR-0.6B-Q8_0.gguf",
+  "name": "Qwen3-ASR 0.6B",
+  "repo": "handy-computer/Qwen3-ASR-0.6B-gguf",
+  "file": "Qwen3-ASR-0.6B-Q8_0.gguf",
+  "size": 850423456,
+  "revision": "e4e16599b900eb0cb36e524514756bb92eb092b7",
+  "recommended": false,
+  "langs": [
+   "zh",
+   "en",
+   "yue",
+   "ar",
+   "de"
+  ]
+ },
+ {
+  "id": "handy-computer/Qwen3-ASR-1.7B-gguf/Qwen3-ASR-1.7B-Q5_K_M.gguf",
+  "name": "Qwen3-ASR 1.7B",
+  "repo": "handy-computer/Qwen3-ASR-1.7B-gguf",
+  "file": "Qwen3-ASR-1.7B-Q5_K_M.gguf",
+  "size": 1517290464,
+  "revision": "92282af1610a2db19d66f2bef1e260f5deca782d",
+  "recommended": false,
+  "langs": [
+   "zh",
+   "en",
+   "yue",
+   "ar",
+   "de"
+  ]
+ },
+ {
+  "id": "handy-computer/SenseVoiceSmall-gguf/SenseVoiceSmall-Q8_0.gguf",
+  "name": "SenseVoice Small",
+  "repo": "handy-computer/SenseVoiceSmall-gguf",
+  "file": "SenseVoiceSmall-Q8_0.gguf",
+  "size": 252684608,
+  "revision": "4a08b8e900b38a977e32eb08d5d0697d6e72ba04",
+  "recommended": false,
+  "langs": [
+   "zh",
+   "yue",
+   "en",
+   "ja",
+   "ko"
+  ]
+ },
+ {
+  "id": "handy-computer/Voxtral-Mini-3B-2507-gguf/Voxtral-Mini-3B-2507-Q5_K_M.gguf",
+  "name": "Voxtral Mini 3B",
+  "repo": "handy-computer/Voxtral-Mini-3B-2507-gguf",
+  "file": "Voxtral-Mini-3B-2507-Q5_K_M.gguf",
+  "size": 3464182432,
+  "revision": "5690205813042c07cbaa86d2a9dcc585fcd31304",
+  "recommended": false,
+  "langs": [
+   "en",
+   "fr",
+   "de",
+   "es",
+   "it"
+  ]
+ },
+ {
+  "id": "handy-computer/Voxtral-Mini-4B-Realtime-2602-gguf/Voxtral-Mini-4B-Realtime-2602-Q5_K_M.gguf",
+  "name": "Voxtral Mini 4B Realtime",
+  "repo": "handy-computer/Voxtral-Mini-4B-Realtime-2602-gguf",
+  "file": "Voxtral-Mini-4B-Realtime-2602-Q5_K_M.gguf",
+  "size": 3281439008,
+  "revision": "b3e1c979e3775cbd0a49a65878a0ec7f06789ed7",
+  "recommended": false,
+  "langs": [
+   "en",
+   "fr",
+   "es",
+   "de",
+   "ru"
+  ]
+ },
+ {
+  "id": "handy-computer/Voxtral-Small-24B-2507-gguf/Voxtral-Small-24B-2507-Q5_K_M.gguf",
+  "name": "Voxtral Small 24B",
+  "repo": "handy-computer/Voxtral-Small-24B-2507-gguf",
+  "file": "Voxtral-Small-24B-2507-Q5_K_M.gguf",
+  "size": 17138659808,
+  "revision": "3b85044238d7d73b0063c54ee6d0754b5f061795",
+  "recommended": false,
+  "langs": [
+   "en",
+   "fr",
+   "de",
+   "es",
+   "it"
+  ]
+ },
+ {
+  "id": "handy-computer/whisper-base-gguf/whisper-base-Q8_0.gguf",
+  "name": "Whisper Base",
+  "repo": "handy-computer/whisper-base-gguf",
+  "file": "whisper-base-Q8_0.gguf",
+  "size": 84962880,
+  "revision": "e0f69524f648720eca44c024d1d0dbb7027d1fa0",
+  "recommended": false,
+  "langs": [
+   "en",
+   "zh",
+   "de",
+   "es",
+   "ru"
+  ]
+ },
+ {
+  "id": "handy-computer/whisper-base.en-gguf/whisper-base.en-Q8_0.gguf",
+  "name": "Whisper Base (English)",
+  "repo": "handy-computer/whisper-base.en-gguf",
+  "file": "whisper-base.en-Q8_0.gguf",
+  "size": 84886208,
+  "revision": "cf0804db15fb341d00c9274b90da9cbb4fe2e5c6",
+  "recommended": false,
+  "langs": [
+   "en"
+  ]
+ },
+ {
+  "id": "handy-computer/whisper-large-gguf/whisper-large-Q5_K_M.gguf",
+  "name": "Whisper Large",
+  "repo": "handy-computer/whisper-large-gguf",
+  "file": "whisper-large-Q5_K_M.gguf",
+  "size": 1160366048,
+  "revision": "1b99acc257d1a605153c9e4d818a065569a3fdcd",
+  "recommended": false,
+  "langs": [
+   "en",
+   "zh",
+   "de",
+   "es",
+   "ru"
+  ]
+ },
+ {
+  "id": "handy-computer/whisper-large-v2-gguf/whisper-large-v2-Q5_K_M.gguf",
+  "name": "Whisper Large v2",
+  "repo": "handy-computer/whisper-large-v2-gguf",
+  "file": "whisper-large-v2-Q5_K_M.gguf",
+  "size": 1160366080,
+  "revision": "b64d145562182428ef04ca992b182aec8c61e578",
+  "recommended": false,
+  "langs": [
+   "en",
+   "zh",
+   "de",
+   "es",
+   "ru"
+  ]
+ },
+ {
+  "id": "handy-computer/whisper-large-v3-gguf/whisper-large-v3-Q5_K_M.gguf",
+  "name": "Whisper Large v3",
+  "repo": "handy-computer/whisper-large-v3-gguf",
+  "file": "whisper-large-v3-Q5_K_M.gguf",
+  "size": 1161143008,
+  "revision": "e3e29bee6389c7da4a141406f07bb80ddac5337c",
+  "recommended": false,
+  "langs": [
+   "en",
+   "zh",
+   "de",
+   "es",
+   "ru"
+  ]
+ },
+ {
+  "id": "handy-computer/whisper-large-v3-turbo-gguf/whisper-large-v3-turbo-Q8_0.gguf",
+  "name": "Whisper Large v3 Turbo",
+  "repo": "handy-computer/whisper-large-v3-turbo-gguf",
+  "file": "whisper-large-v3-turbo-Q8_0.gguf",
+  "size": 886381760,
+  "revision": "5eaf945c7978e564bae5b28a5b1639dd93c2bfb1",
+  "recommended": false,
+  "langs": [
+   "en",
+   "zh",
+   "de",
+   "es",
+   "ru"
+  ]
+ },
+ {
+  "id": "handy-computer/whisper-medium.en-gguf/whisper-medium.en-Q8_0.gguf",
+  "name": "Whisper Medium (English)",
+  "repo": "handy-computer/whisper-medium.en-gguf",
+  "file": "whisper-medium.en-Q8_0.gguf",
+  "size": 831460928,
+  "revision": "f25c70d9095dcfdad187ebb3b113d157b414aee8",
+  "recommended": false,
+  "langs": [
+   "en"
+  ]
+ },
+ {
+  "id": "handy-computer/whisper-small-gguf/whisper-small-Q8_0.gguf",
+  "name": "Whisper Small",
+  "repo": "handy-computer/whisper-small-gguf",
+  "file": "whisper-small-Q8_0.gguf",
+  "size": 269751136,
+  "revision": "c0214bd34be9296695486f838e0142f900803159",
+  "recommended": false,
+  "langs": [
+   "en",
+   "zh",
+   "de",
+   "es",
+   "ru"
+  ]
+ },
+ {
+  "id": "handy-computer/whisper-small.en-gguf/whisper-small.en-Q8_0.gguf",
+  "name": "Whisper Small (English)",
+  "repo": "handy-computer/whisper-small.en-gguf",
+  "file": "whisper-small.en-Q8_0.gguf",
+  "size": 269674144,
+  "revision": "41b0f75fd44415ba127a5356c5ba9ed450c1debd",
+  "recommended": false,
+  "langs": [
+   "en"
+  ]
+ },
+ {
+  "id": "handy-computer/whisper-tiny-gguf/whisper-tiny-Q8_0.gguf",
+  "name": "Whisper Tiny",
+  "repo": "handy-computer/whisper-tiny-gguf",
+  "file": "whisper-tiny-Q8_0.gguf",
+  "size": 45981088,
+  "revision": "6687f30c99641ee265df421e582354adbc8848fc",
+  "recommended": false,
+  "langs": [
+   "en",
+   "zh",
+   "de",
+   "es",
+   "ru"
+  ]
+ },
+ {
+  "id": "handy-computer/whisper-tiny.en-gguf/whisper-tiny.en-Q8_0.gguf",
+  "name": "Whisper Tiny (English)",
+  "repo": "handy-computer/whisper-tiny.en-gguf",
+  "file": "whisper-tiny.en-Q8_0.gguf",
+  "size": 45904544,
+  "revision": "becb8bcb804405dc97b380a523d9975888820986",
+  "recommended": false,
+  "langs": [
+   "en"
+  ]
+ }
+]

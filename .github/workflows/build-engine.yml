@@ -1,0 +1,71 @@
+name: build-engine
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  engine:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset: transcribe-cli-linux-x86_64
+          - os: ubuntu-24.04-arm
+            asset: transcribe-cli-linux-arm64
+          - os: macos-14
+            asset: transcribe-cli-macos-arm64
+          - os: macos-13
+            asset: transcribe-cli-macos-x86_64
+          - os: windows-latest
+            asset: transcribe-cli-windows-x86_64.exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout transcribe.cpp
+        uses: actions/checkout@v4
+        with:
+          repository: handy-computer/transcribe.cpp
+          ref: v0.2.0
+          path: transcribe.cpp
+
+      - name: Configure (CMake)
+        working-directory: transcribe.cpp
+        run: >
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          -DTRANSCRIBE_BUILD_TESTS=OFF
+          -DTRANSCRIBE_BUILD_TOOLS=OFF
+          -DTRANSCRIBE_BUILD_EXAMPLES=ON
+          -DTRANSCRIBE_USE_SYSTEM_BLAS=OFF
+
+      - name: Build transcribe-cli
+        working-directory: transcribe.cpp
+        run: cmake --build build --target transcribe-cli -j 4
+
+      - name: Locate binary
+        id: bin
+        shell: bash
+        run: |
+          if [ -f transcribe.cpp/build/bin/transcribe-cli ]; then
+            echo "path=transcribe.cpp/build/bin/transcribe-cli" >> "$GITHUB_OUTPUT"
+          else
+            echo "path=transcribe.cpp/build/bin/Release/transcribe-cli.exe" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Stage asset with platform name
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp "${{ steps.bin.outputs.path }}" "dist/${{ matrix.asset }}"
+
+      - name: Upload asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/${{ matrix.asset }}
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
