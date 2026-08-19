@@ -41,7 +41,7 @@
     "cordis.patch.yml"
   ],
   "scripts": {
-    "prepare": "npm run build",
+    "prepack": "npm run build",
     "build": "node scripts/gen-catalog.mjs && tsc -p tsconfig.json && tsdown -c tsdown.config.ts",
     "typecheck": "tsc --noEmit",
     "test": "node test/run.mjs"

@@ -21,10 +21,6 @@ coverage
 # Dependency directories
 node_modules/
 
-# Build output
-lib/
-dist/
-
 # npm cache (local, for EROFS npm installs)
 .npm-cache/
 
