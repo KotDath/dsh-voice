@@ -16,6 +16,9 @@ async function runDownload(key, url, target, expectedSize, afterDone) {
     await runCmd('mkdir -p ' + q(dir), { timeoutMs: 10000 })
     await runCmd('curl -sS -L --fail --retry 2 -o ' + q(target + '.part') + ' ' + q(url), { timeoutMs: 3600000 })
     await runCmd('mv ' + q(target + '.part') + ' ' + q(target), { timeoutMs: 30000 })
+    // The engine binary must be executable (curl/mv do not set the +x bit).
+    // chmod is a no-op on Windows but required on Linux/macOS.
+    if (key === 'engine') { try { await runCmd('chmod +x ' + q(target), { timeoutMs: 10000 }) } catch (e) {} }
     if (afterDone) await afterDone(target)
     downloads[key].status = 'done'
     downloads[key].bytes = expectedSize || await fileSize(target)

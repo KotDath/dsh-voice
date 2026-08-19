@@ -310,6 +310,9 @@ async function runDownload(key, url, target, expectedSize, afterDone) {
     await runCmd('mkdir -p ' + q(dir), { timeoutMs: 10000 })
     await runCmd('curl -sS -L --fail --retry 2 -o ' + q(target + '.part') + ' ' + q(url), { timeoutMs: 3600000 })
     await runCmd('mv ' + q(target + '.part') + ' ' + q(target), { timeoutMs: 30000 })
+    // The engine binary must be executable (curl/mv do not set the +x bit).
+    // chmod is a no-op on Windows but required on Linux/macOS.
+    if (key === 'engine') { try { await runCmd('chmod +x ' + q(target), { timeoutMs: 10000 }) } catch (e) {} }
     if (afterDone) await afterDone(target)
     downloads[key].status = 'done'
     downloads[key].bytes = expectedSize || await fileSize(target)
@@ -344,8 +347,19 @@ async function downloadStatusSnapshot() {
 // Installation: download the per-platform release asset, optionally verify a
 // `.sha256` sidecar published alongside it, then chmod +x.
 
+// On Windows the engine file must carry a .exe extension (CreateProcess /
+// git-bash `test -x` refuse extensionless PE files). The default config path
+// has no extension, so append it once the platform is known.
+async function ensureBinaryPath() {
+  if (config.tcpp.binary.slice(-4).toLowerCase() === '.exe') return config.tcpp.binary
+  const p = await detectPlatform()
+  if (p.os === 'windows') config.tcpp.binary += '.exe'
+  return config.tcpp.binary
+}
+
 async function engineExists() {
   try {
+    await ensureBinaryPath()
     await runCmd('test -x ' + q(config.tcpp.binary), { timeoutMs: 10000 })
     return true
   } catch (e) {
@@ -366,6 +380,7 @@ async function adoptEngineFrom(source) {
 }
 
 async function discoverEngine() {
+  await ensureBinaryPath()
   // PATH lookup (explicit, not a filesystem sweep).
   try {
     const r = await runCmd('command -v transcribe-cli 2>/dev/null || true', { timeoutMs: 10000 })

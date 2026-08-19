@@ -40,10 +40,31 @@ async function main() {
   })
   await m2.handlers['voice/config']({ provider: 'tcpp', language: 'auto' })
   await m2.handlers['voice/engine-download']()
-  // runDownload is fire-and-forget; give the mock shell a tick to log the curl.
+  // runDownload is fire-and-forget; give the mock shell a tick to log commands.
   await new Promise((r) => setTimeout(r, 20))
   const winCurl = m2.shellCalls.find((c) => c.startsWith('curl'))
   ok(winCurl && /windows-x86_64\.exe/.test(winCurl || ''), 'Windows engine download URL carries .exe suffix')
+  ok(winCurl && /transcribe-cli\.exe\.part/.test(winCurl || ''), 'Windows engine download target carries .exe extension')
+  const winChmod = m2.shellCalls.find((c) => c.startsWith('chmod +x'))
+  ok(!!winChmod && /transcribe-cli\.exe/.test(winChmod || ''), 'engine download is chmod +x (Windows path with .exe)')
+
+  // ---------- Linux engine download also chmod +x (regression: lost in refactor) ----------
+  const m2b = makeBundle({
+    onCommand(spec) {
+      const result = { exitCode: 0, timedOut: false, stdout: { text: '' }, stderr: { text: '' } }
+      if (spec.command === 'uname -s') result.stdout.text = 'Linux'
+      if (spec.command === 'uname -m') result.stdout.text = 'x86_64'
+      if (/^test -x /.test(spec.command) && /transcribe-cli/.test(spec.command)) { result.exitCode = 1; return result }
+      if (/^test -f /.test(spec.command) && /transcribe-cli/.test(spec.command)) { result.exitCode = 1; return result }
+      return result
+    },
+  })
+  await m2b.handlers['voice/config']({ provider: 'tcpp', language: 'auto' })
+  await m2b.handlers['voice/engine-download']()
+  await new Promise((r) => setTimeout(r, 20))
+  const linChmod = m2b.shellCalls.find((c) => c.startsWith('chmod +x'))
+  ok(!!linChmod && /transcribe-cli/.test(linChmod || ''), 'engine download is chmod +x (Linux path)')
+  ok(!/\.exe/.test(linChmod || ''), 'Linux engine path has no .exe suffix')
 
   // ---------- catalog-driven models listing ----------
   const m3 = makeBundle({
