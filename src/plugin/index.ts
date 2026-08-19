@@ -473,13 +473,23 @@ function readBody(req: IncomingMessage): Promise<Record<string, unknown>> {
 export interface Config {}
 
 /**
+ * Hard service dependencies: the Loader activates this plugin only after all
+ * of them are available (the same pattern dsh-track uses with
+ * `ctx.inject(['webServer'], …)` — an eager `ctx.get` at apply time would
+ * return undefined while sibling fibers are still activating, and the whole
+ * plugin would silently register nothing).
+ */
+export const inject = ['webServer', 'shell', 'fs']
+
+/**
  * Host plugin body: register /api/voice/* endpoints on the webserver.
- * @param ctx - host root context.
+ * @param ctx - host root context (services from `inject` are guaranteed).
  */
 export function apply(ctx: Context): void {
   const shell = ctx.get('shell')
   const fs = ctx.get('fs')
   const webServer = ctx.get('webServer')
+  // Unreachable when `inject` is honored; kept as a guard for direct apply() calls.
   if (shell === undefined || fs === undefined || webServer === undefined) return
 
   const sandboxPolicy = ctx.get('sandboxPolicy')

@@ -3,12 +3,25 @@
 import { getVoiceState, setVoiceState, type VoiceRec } from './state.ts'
 
 export async function apiCall<T>(path: string, body?: unknown): Promise<T> {
-  const res = await fetch(path, {
-    method: body === undefined ? 'GET' : 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  })
-  const data = await res.json() as T & { ok?: boolean; error?: string }
+  let res: Response
+  try {
+    res = await fetch(path, {
+      method: body === undefined ? 'GET' : 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    })
+  } catch (e) {
+    throw new Error('voice API unreachable: ' + (e instanceof Error ? e.message : String(e)))
+  }
+  const text = await res.text()
+  let data: T & { ok?: boolean; error?: string }
+  try {
+    data = JSON.parse(text) as T & { ok?: boolean; error?: string }
+  } catch {
+    // The endpoint answered non-JSON (e.g. a 404 HTML page when the host half
+    // is not mounted) — surface that instead of a cryptic JSON.parse error.
+    throw new Error(`voice API ${path} returned ${res.status}: ${text.slice(0, 120) || '(empty)'}`)
+  }
   if (!res.ok || data.ok === false) {
     throw new Error(data.error ?? `request failed (${res.status})`)
   }
