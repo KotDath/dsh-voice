@@ -1,0 +1,187 @@
+.voiceMic {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--dsw-alias-border-l1);
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+  padding: 0;
+  box-sizing: border-box;
+}
+.voiceMic:hover {
+  color: var(--dsw-alias-label-primary);
+  border-color: var(--dsw-alias-border-l2);
+}
+.voicePill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 52px;
+  border-radius: 26px;
+  background: var(--dsw-alias-bg-layer-1);
+  border: 1px solid var(--dsw-alias-border-l1);
+  padding: 0 14px;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  box-sizing: border-box;
+}
+.voicePillBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+  flex: none;
+  box-sizing: border-box;
+}
+.voicePillCancel {
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+}
+.voicePillCancel:hover {
+  background: var(--dsw-alias-bg-layer-2);
+}
+.voicePillStop {
+  border: none;
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-primary);
+}
+.voicePillStop:hover {
+  filter: brightness(1.15);
+}
+.voicePillSend {
+  border: none;
+  background: var(--dsw-alias-label-primary);
+  color: var(--dsw-alias-bg-base);
+}
+.voicePillSend:hover {
+  opacity: 0.9;
+}
+.voiceWave {
+  flex: 1;
+  height: 40px;
+  width: 100%;
+  color: var(--dsw-alias-label-primary);
+}
+.voiceStatus {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+}
+.voiceStatusErr {
+  color: var(--dsw-alias-state-error-primary);
+}
+.voiceErrText {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.voiceSpin {
+  animation: voiceSpin 1s linear infinite;
+}
+@keyframes voiceSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.voiceSettings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 560px;
+  padding: 8px 0;
+}
+.voiceField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary);
+}
+.voiceSettings input,
+.voiceSettings select {
+  background: var(--dsw-alias-bg-layer-1);
+  border: 1px solid var(--dsw-alias-border-l1);
+  color: var(--dsw-alias-label-primary);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+}
+.voiceSave {
+  align-self: flex-start;
+  background: var(--dsw-alias-brand-primary);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.voiceHint {
+  font-size: 11px;
+  color: var(--dsw-alias-label-secondary);
+}
+.voiceSaved {
+  font-size: 12px;
+  color: var(--dsw-alias-state-success-primary);
+}
+.voiceRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.voiceRow select {
+  flex: 1;
+}
+.voiceAction {
+  background: var(--dsw-alias-bg-layer-1);
+  border: 1px solid var(--dsw-alias-border-l1);
+  color: var(--dsw-alias-label-primary);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.voiceAction:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.voiceBar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--dsw-alias-bg-layer-2);
+  overflow: hidden;
+}
+.voiceBar > div {
+  height: 100%;
+  background: var(--dsw-alias-brand-primary);
+  transition: width 0.4s;
+}
+.voiceDlInfo {
+  font-size: 11px;
+  color: var(--dsw-alias-label-secondary);
+}
+.voiceAdvanced {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+.voiceAdvancedBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}

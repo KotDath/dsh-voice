@@ -1,0 +1,15 @@
+# The dsh-voice bundle patch: one plugin row added to the web profile
+# composition. Applied after the web-app bundle's own patch layer; the row
+# joins the dshClient roster, so the modules node half serves lib/client.js
+# into the boot graph and every session gets the voice input button.
+#
+# Install into a profile with:
+#   dsh plugin --profile web add github:KotDath/dsh-voice
+#
+# The row name is the package itself: the host Loader mounts lib/index.js
+# (Node half: /api/voice/* HTTP endpoints) and the dsh.client declaration in
+# package.json registers lib/client.js (browser half: mic button, recording
+# pill, settings).
+- insert:
+    - id: voice
+      name: 'dsh-voice'

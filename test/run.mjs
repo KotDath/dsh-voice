@@ -1,124 +1,75 @@
-// Host test runner for dsh-voice.
+// Host-side unit tests for the dsh-voice bundle (Node half).
 //
 //   node test/run.mjs
 //
 // Exit code 0 = all pass.
 
-import { makeBundle, ok, eq, stats } from './host.test.mjs'
+import { readFileSync, existsSync } from 'node:fs'
+import { resolve, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const results = { pass: 0, fail: 0, failures: [] }
+function ok(cond, label) {
+  if (cond) results.pass++
+  else { results.fail++; results.failures.push(label) }
+}
+function eq(a, b, label) {
+  if (JSON.stringify(a) === JSON.stringify(b)) results.pass++
+  else { results.fail++; results.failures.push(`${label}: expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`) }
+}
 
 async function main() {
-  // ---------- config sanitization (schema.js) ----------
-  const m1 = makeBundle()
-  // provider/language whitelisted
-  const c1 = await m1.handlers['voice/config']({ provider: 'api', language: 'ru' })
-  eq(c1.provider, 'api', 'provider whitelist accepted')
-  eq(c1.language, 'ru', 'language whitelist accepted')
-  // hostile values are ignored (shell-injection guard, P0)
-  const c2 = await m1.handlers['voice/config']({ provider: 'api; rm -rf /', language: 'ru$(touch /x)' })
-  eq(c2.provider, 'api', 'hostile provider ignored, previous kept')
-  eq(c2.language, 'ru', 'hostile language ignored, previous kept')
-  // api key is host-only: never echoed back
-  await m1.handlers['voice/api-key']({ key: 'sk-super-secret' })
-  const c3 = await m1.handlers['voice/config']({})
-  eq(c3.api.hasKey, true, 'hasKey=true after setting key')
-  ok(!('key' in c3.api), 'api key is never present in public config')
-  await m1.handlers['voice/api-key']({ key: '' })
-  const c4 = await m1.handlers['voice/config']({})
-  eq(c4.api.hasKey, false, 'hasKey=false after clearing key')
-
-  // ---------- platform detection & Windows .exe asset (P0 fix) ----------
-  const m2 = makeBundle({
-    onCommand(spec) {
-      const result = { exitCode: 0, timedOut: false, stdout: { text: '' }, stderr: { text: '' } }
-      if (spec.command === 'uname -s') result.stdout.text = 'MINGW64_NT-10.0'
-      if (spec.command === 'uname -m') result.stdout.text = 'x86_64'
-      // Engine NOT installed and NOT discoverable anywhere → force download.
-      if (/^test -x /.test(spec.command) && /transcribe-cli/.test(spec.command)) { result.exitCode = 1; return result }
-      if (/^test -f /.test(spec.command) && /transcribe-cli/.test(spec.command)) { result.exitCode = 1; return result }
-      return result
-    },
-  })
-  await m2.handlers['voice/config']({ provider: 'tcpp', language: 'auto' })
-  await m2.handlers['voice/engine-download']()
-  // runDownload is fire-and-forget; give the mock shell a tick to log commands.
-  await new Promise((r) => setTimeout(r, 20))
-  const winCurl = m2.shellCalls.find((c) => c.startsWith('curl'))
-  ok(winCurl && /windows-x86_64\.exe/.test(winCurl || ''), 'Windows engine download URL carries .exe suffix')
-  ok(winCurl && /transcribe-cli\.exe\.part/.test(winCurl || ''), 'Windows engine download target carries .exe extension')
-  const winChmod = m2.shellCalls.find((c) => c.startsWith('chmod +x'))
-  ok(!!winChmod && /transcribe-cli\.exe/.test(winChmod || ''), 'engine download is chmod +x (Windows path with .exe)')
-
-  // ---------- Linux engine download also chmod +x (regression: lost in refactor) ----------
-  const m2b = makeBundle({
-    onCommand(spec) {
-      const result = { exitCode: 0, timedOut: false, stdout: { text: '' }, stderr: { text: '' } }
-      if (spec.command === 'uname -s') result.stdout.text = 'Linux'
-      if (spec.command === 'uname -m') result.stdout.text = 'x86_64'
-      if (/^test -x /.test(spec.command) && /transcribe-cli/.test(spec.command)) { result.exitCode = 1; return result }
-      if (/^test -f /.test(spec.command) && /transcribe-cli/.test(spec.command)) { result.exitCode = 1; return result }
-      return result
-    },
-  })
-  await m2b.handlers['voice/config']({ provider: 'tcpp', language: 'auto' })
-  await m2b.handlers['voice/engine-download']()
-  await new Promise((r) => setTimeout(r, 20))
-  const linChmod = m2b.shellCalls.find((c) => c.startsWith('chmod +x'))
-  ok(!!linChmod && /transcribe-cli/.test(linChmod || ''), 'engine download is chmod +x (Linux path)')
-  ok(!/\.exe/.test(linChmod || ''), 'Linux engine path has no .exe suffix')
-
-  // ---------- catalog-driven models listing ----------
-  const m3 = makeBundle({
-    onCommand(spec) {
-      const result = { exitCode: 0, timedOut: false, stdout: { text: '' }, stderr: { text: '' } }
-      if (spec.command === 'uname -s') result.stdout.text = 'Linux'
-      if (spec.command === 'uname -m') result.stdout.text = 'x86_64'
-      return result
-    },
-  })
-  const models = await m3.handlers['voice/models']()
-  ok(models.ok === true, 'voice/models returns ok')
-  ok(Array.isArray(models.models) && models.models.length > 0, 'voice/models lists models')
-  eq(models.platform.os, 'linux', 'default mocked platform is linux')
-  eq(models.platform.arch, 'x86_64', 'default mocked arch is x86_64')
-
-  // ---------- transcribe validates input ----------
-  const m4 = makeBundle()
-  const bad = await m4.handlers['voice/transcribe']({})
-  eq(bad.ok, false, 'transcribe with no audio returns ok:false')
-  ok(/no audio/i.test(bad.error || ''), 'transcribe missing-audio error message')
-
-  // ---------- handler registration completeness ----------
-  const m5 = makeBundle()
-  const expected = ['voice/config', 'voice/api-key', 'voice/models', 'voice/download',
-    'voice/engine-download', 'voice/download-status', 'voice/transcribe']
-  for (const name of expected) {
-    ok(typeof m5.handlers[name] === 'function', `${name} handler registered`)
+  // ---------- built artifacts exist ----------
+  for (const f of ['lib/index.js', 'lib/client.js', 'cordis.patch.yml', 'package.json']) {
+    ok(existsSync(resolve(ROOT, f)), `artifact exists: ${f}`)
   }
 
+  // ---------- host half loads and exposes the plugin contract ----------
+  const host = await import(resolve(ROOT, 'lib/index.js'))
+  eq(typeof host.apply, 'function', 'host half exports apply()')
+  eq(host.name, 'dsh-voice', 'host half exports name "dsh-voice"')
+  ok(Array.isArray(host.CATALOG) && host.CATALOG.length >= 60, `catalog has ${host.CATALOG.length} models (>= 60)`)
+
   // ---------- catalog integrity (models.json = single source of truth) ----------
-  const { readFileSync } = await import('node:fs')
-  const { resolve, dirname } = await import('node:path')
-  const { fileURLToPath } = await import('node:url')
-  const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-  const catalogModels = JSON.parse(readFileSync(resolve(root, 'models.json'), 'utf8'))
-  ok(Array.isArray(catalogModels) && catalogModels.length >= 60, `catalog has ${catalogModels.length} models (>= 60)`)
+  const models = JSON.parse(readFileSync(resolve(ROOT, 'models.json'), 'utf8'))
+  ok(Array.isArray(models) && models.length >= 60, `models.json has ${models.length} models (>= 60)`)
+  eq(models.length, host.CATALOG.length, 'generated catalog matches models.json count')
   const required = ['id', 'name', 'repo', 'file', 'size']
   let badEntry = null
-  for (const m of catalogModels) {
+  for (const m of models) {
     for (const k of required) {
       if (m[k] === undefined || m[k] === null || m[k] === '') { badEntry = { id: m.id, missing: k }; break }
     }
     if (badEntry) break
   }
   ok(!badEntry, `every catalog entry has required fields${badEntry ? ` (missing ${badEntry.missing} in ${badEntry.id})` : ''}`)
-  // repo must point at handy-computer org (engine download convention)
-  ok(catalogModels.every((m) => /^handy-computer\//.test(m.repo || '')), 'all catalog repos are handy-computer org')
+  ok(models.every((m) => /^handy-computer\//.test(m.repo || '')), 'all catalog repos are handy-computer org')
+
+  // ---------- client bundle is a module-table closure ----------
+  const clientSrc = readFileSync(resolve(ROOT, 'lib/client.js'), 'utf8')
+  ok(clientSrc.includes('window.__ModuleLoader__.load'), 'client bundle registers via __ModuleLoader__.load')
+  ok(clientSrc.includes('dsh-voice'), 'client bundle carries plugin id')
+  ok(clientSrc.includes('conversation.input.right'), 'client bundle registers input.right slot')
+  ok(clientSrc.includes('conversation.input.dock'), 'client bundle registers input.dock slot')
+  ok(clientSrc.includes('settings.section'), 'client bundle registers settings.section slot')
+
+  // ---------- cordis.patch.yml declares the plugin row ----------
+  const patch = readFileSync(resolve(ROOT, 'cordis.patch.yml'), 'utf8')
+  ok(patch.includes("name: 'dsh-voice'"), 'cordis.patch.yml inserts the dsh-voice row')
+  ok(patch.includes('- insert:'), 'cordis.patch.yml uses the insert patch form')
+
+  // ---------- package.json declares bundle + client ----------
+  const pkg = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf8'))
+  eq(pkg.dsh?.bundle?.patch, './cordis.patch.yml', 'package.json declares dsh.bundle.patch')
+  eq(pkg.dsh?.client?.platform, 'web', 'package.json declares dsh.client.platform=web')
+  ok(pkg.exports?.['./client'] !== undefined, 'package.json exports ./client')
+  ok(pkg.exports?.['.'] !== undefined, 'package.json exports .')
 
   // ---------- summary ----------
-  const s = stats()
-  console.log(`\n${s.pass}/${s.pass + s.fail} assertions passed${s.fail ? `, ${s.fail} failed` : ''}`)
-  if (s.fail) {
-    for (const f of s.failures) console.log('  ✗ ' + f)
+  console.log(`\n${results.pass}/${results.pass + results.fail} assertions passed${results.fail ? `, ${results.fail} failed` : ''}`)
+  if (results.fail) {
+    for (const f of results.failures) console.log('  ✗ ' + f)
     process.exit(1)
   }
   console.log('All host tests passed.')

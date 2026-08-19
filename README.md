@@ -1,6 +1,6 @@
 # dsh-voice
 
-Voice input for the DeepSeek Harness Web GUI (dynamic Cordis Plugin).
+Voice input for the DeepSeek Harness Web GUI — as an **official plugin bundle**.
 
 A microphone button (SVG icon) sits next to the send button in the composer.
 Clicking it brings up a ChatGPT-style recording "pill" above the composer:
@@ -20,78 +20,76 @@ history fades left into a dim dotted baseline (like ChatGPT's voice mode).
 
 ### Requirements
 
-- A running DeepSeek Harness with the Web GUI (the plugin is a **dynamic Cordis
-  Plugin**: it is loaded into a live session and lives for the process lifetime).
+- A running DeepSeek Harness with the Web GUI (Node.js quick start:
+  `npx @deepseek-ai/dsh web`, default `http://127.0.0.1:3080`).
 - On the host machine: `bash`, `curl` (engine/model downloads), `ffmpeg` (audio
   conversion). The transcribe.cpp engine is downloaded automatically per
   OS/architecture from this repository's Releases — or adopted from `PATH` / a
   sibling `.engine/` dir if a `transcribe-cli` binary already exists.
 - A browser with mic access over HTTPS or localhost.
 
-### Quick install (agent or human, in a DSH session)
+### Install into a profile (all sessions)
 
-The recommended way is to let an AI agent inside a DSH session do it — see
-[AGENTS.md](AGENTS.md). In short, it reads `dist/host.js` and `dist/client.js`
-from this repository and registers them through the dynamic-plugin tools:
-
-```
-cordis_define({
-  plugin: { kind: 'new', idPrefix: 'voice' },
-  name: 'dsh-voice',
-  purpose: 'Voice input with local/API transcription for the DSH Web GUI.',
-  code: {
-    host:   <contents of dist/host.js>,
-    client: <contents of dist/client.js>,
-  },
-})
-// → pluginId, packageId
-cordis_run({ pluginId, packageId, mode: 'run' })
-// → approve the Run card in the UI (double-check to allow future updates)
+```sh
+dsh plugin --profile web add github:KotDath/dsh-voice
 ```
 
-After activation:
+For a local test build instead:
+
+```sh
+npm install && npm run build
+dsh plugin --profile web add file:/path/to/dsh-voice
+```
+
+Then **restart the web process** (`dsh web`) — the new plugin row is picked up
+at boot. After that the plugin is active in **every session** of the profile:
+no per-session `cordis_define`, no source edits.
+
+The package declares `dsh.bundle.patch` (→ `cordis.patch.yml`, one row
+`id: voice, name: dsh-voice`) and `dsh.client` (→ the browser half
+`lib/client.js`). `dsh plugin` installs it with pnpm into the profile and
+reconciles `dsh.profile.bundles` automatically.
+
+To remove:
+
+```sh
+dsh plugin --profile web remove dsh-voice
+```
+
+### First-run flow (for the end user)
 
 1. Open **Settings → Voice** — the engine is either `✓ installed` or
    downloadable with one click ("Download engine", releases built by CI).
 2. Pick a model from the catalog and press **Download** if it is not marked ✓.
 3. Use the mic button next to the send button in the composer.
-
-### First-run flow (for the end user)
-
-1. **Settings → Voice → Download engine** (5 MB, automatic per platform).
-2. **Model → Download** (sizes shown, progress bar included).
-3. Record → `✕` cancel / `⏹` insert / `↑` send.
-
-### Notes on how DSH plugins attach
-
-Dynamic Cordis plugins (this repository's format) are **session-scoped**:
-`cordis_define` + `cordis_run` activates them in the running process, and they
-do not survive a process restart or move to other sessions by themselves.
-A permanent, always-mounted installation would require packaging the client as
-a static web-plugin package (`dsh.client` scan path of the Harness) — not part
-of this repository yet; contributions welcome.
+4. Record → `✕` cancel / `⏹` insert / `↑` send.
 
 ## Architecture
 
 ```
 [Client: browser]                                [Host: Node]
-┌─────────────────────────────────┐  host.call   ┌────────────────────────────────┐
-│ slot conversation.input.right   │ ───────────► │ harness.handle('voice/        │
-│  • MediaRecorder (webm/opus)    │ base64+meta  │   transcribe')                │
-│  • AnalyserNode → waveform      │              │  • base64 -d → file           │
-│  • timers, states               │ ◄─────────── │  • ffmpeg → 16 kHz mono wav    │
-│ inputActions.setDraft + submit  │   { text }   │  • provider:                  │
-└─────────────────────────────────┘              │     tcpp:  transcribe-cli      │
-                                                 │     local: whisper-cli -oj     │
+┌─────────────────────────────────┐  fetch      ┌────────────────────────────────┐
+│ slot conversation.input.right   │ ──────────► │ /api/voice/transcribe          │
+│  • MediaRecorder (webm/opus)    │ base64+meta │  • base64 -d → file           │
+│  • AnalyserNode → waveform      │              │  • ffmpeg → 16 kHz mono wav    │
+│  • timers, states               │ ◄─────────── │  • provider:                  │
+│ inputActions.setDraft + submit  │   { text }   │     tcpp:  transcribe-cli      │
+└─────────────────────────────────┘              │     local: whisper-cli -oj     │
                                                  │     api:   curl multipart     │
                                                  │  • temp file cleanup           │
                                                  └────────────────────────────────┘
 ```
 
+Unlike the earlier dynamic-plugin versions, the two halves do **not** use the
+`harness.handle`/`host.call` bridge: the Node half registers plain HTTP
+endpoints on the harness webserver (`/api/voice/*`), and the browser half
+calls them with `fetch`. That is the pattern used by other static bundle
+plugins (e.g. dsh-track).
+
 ## Transcription providers
 
-Switchable in **Settings → Voice** (state is kept in memory, as expected from a
-dynamic plugin).
+Switchable in **Settings → Voice** (state is kept in memory, as expected from
+a plugin bundle).
 
 | Provider | How it works | Requirements |
 |---|---|---|
@@ -120,7 +118,6 @@ dynamic plugin).
   embedded in the plugin (sizes drive the progress bar). Models already
   downloaded by Handy into the HF cache are picked up automatically — no
   re-download required.
-- Invocation: `transcribe-cli -m model.gguf -q -o out.txt in.wav` (16 kHz mono wav).
 - **Long recordings**: many models have a ~25 s window (e.g. GigaAM) and silently
   lose the rest of a long recording. The plugin splits audio longer than 22 s
   into 20 s segments and transcribes them in one batch run (single model load,
@@ -131,63 +128,41 @@ Realtime — 1.7× realtime (20 s of Russian audio), excellent quality.
 
 ### API key handling
 
-The OpenAI-compatible API key is **host-only**: it is set via a dedicated RPC
-(`voice/api-key`), never echoed back to the page (the settings show only
-whether a key is set), and is passed to the provider via the `DSHVOICE_API_KEY`
-environment variable — never in argv.
+The OpenAI-compatible API key is **host-only**: it is set via its own endpoint
+(`POST /api/voice/api-key`), never echoed back to the page (the settings show
+only whether a key is set), and is passed to the provider via the
+`DSHVOICE_API_KEY` environment variable — never in argv.
 
-## DSH contracts the plugin is built on
+## Development
 
-- Slot `conversation.input.right` — the mic button in the composer tool row
-  (owner props `{session, input}`, standard props `useInput`, `inputActions`).
-- Slot `conversation.input.dock` — the full-width row above the composer card
-  that hosts the recording pill (same InputZone contract).
-- Slot `settings.section` — the "Voice" settings page.
-- RPC `harness.handle` / `host.call` — Client→Host, lossless JSON only
-  (audio travels as base64).
-- Host services: `shell` (bash + stdin + timeout), `fs` (reading out.json),
-  `sandboxPolicy.workspaceRoot` (temp files inside the writable root, cleaned up).
-- Client service `timer` (`ctx.interval`) — recording timer and waveform drawing.
-- Theme tokens `--dsw-alias-*` for styling.
+```
+npm install          # dev deps (uses .npm-cache/ if ~/.npm is read-only)
+npm run build        # gen-catalog → tsc → tsdown (lib/index.js + lib/client.js)
+npm test             # host + client unit tests (plain Node, no browser)
+```
+
+The installable artifact is the npm package at the repository root. See
+[AGENTS.md](AGENTS.md) for the full agent instructions (layout, endpoints,
+security rules, troubleshooting).
 
 ## Repository layout
 
 ```
-src/host/      — host modules: shell, schema, catalog, platform, downloads,
-                 engine, models, hfcache, RPC handlers, providers (tcpp/whisper/api)
-src/client/    — client modules: style, state, icons, recorder, waveform,
-                 components, settings, slot registrations
-scripts/build-plugin.mjs — builds dist/host.js + dist/client.js from src/
-                           (models.json is injected as the CATALOG table)
-dist/          — generated flat function bodies: the installable artifacts
-test/          — host unit tests + client recorder tests (plain Node, no browser)
-models.json    — model catalog (source of truth for the CATALOG table)
-.github/workflows/build-engine.yml — CI: plugin-tests job + engine builds for 5 platforms
-AGENTS.md      — agent install/update instructions
-README.md      — this document
+src/plugin/          — Node half (index.ts, HTTP /api/voice/*) + browser half
+                       (client/: state, recorder, waveform, components,
+                       settings, voice.module.css) + generated catalog
+scripts/gen-catalog.mjs — injects models.json into generated-catalog.ts
+tsdown.config.ts     — node ESM bundle + browser CJS-closure bundle
+cordis.patch.yml     — the bundle's composition patch (one row: id voice)
+package.json         — dsh.bundle.patch + dsh.client declarations
+models.json          — model catalog (source of truth)
+test/                — host + client unit tests
+.github/workflows/build-engine.yml — CI: plugin tests + 5-platform engine builds
+AGENTS.md            — agent install/update instructions
+README.md            — this document
 ```
 
-`dist/host.js` / `dist/client.js` are the function bodies passed to
-`cordis_define` (`code.host` / `code.client`) — see the Installation section
-above. They are generated from `src/` by `node scripts/build-plugin.mjs` and
-committed with every source change. Released versions are pinned by git tags
-(`v0.2.0`, …). The `pkg-N` numbering belongs to the DSH runtime (immutable
-package versions inside a live session) and intentionally does not leak into
-this repository.
-
-## Testing
-
-```
-node scripts/build-plugin.mjs     # regenerate dist/
-node --check dist/host.js         # syntax
-node --check dist/client.js
-node test/run.mjs                 # host logic (config whitelist, platform/assets,
-                                  #   RPC handlers, catalog integrity)
-node test/client.test.mjs         # recorder flow with mocked MediaRecorder/mic
-```
-
-The CI `plugin-tests` job runs all of the above on every push to `main` and on
-every `v*` tag.
+Released versions are pinned by git tags (`v0.3.0`, …).
 
 ## v1 limitations
 
