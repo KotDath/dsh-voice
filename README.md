@@ -24,15 +24,15 @@ history fades left into a dim dotted baseline (like ChatGPT's voice mode).
   Plugin**: it is loaded into a live session and lives for the process lifetime).
 - On the host machine: `bash`, `curl` (engine/model downloads), `ffmpeg` (audio
   conversion). The transcribe.cpp engine is downloaded automatically per
-  OS/architecture from this repository's Releases — or adopted from `$HOME` if a
-  `transcribe-cli` binary already exists.
+  OS/architecture from this repository's Releases — or adopted from `PATH` / a
+  sibling `.engine/` dir if a `transcribe-cli` binary already exists.
 - A browser with mic access over HTTPS or localhost.
 
 ### Quick install (agent or human, in a DSH session)
 
 The recommended way is to let an AI agent inside a DSH session do it — see
-[AGENTS.md](AGENTS.md). In short, it reads `host.js` and `client.js` from this repository and registers
-them through the dynamic-plugin tools:
+[AGENTS.md](AGENTS.md). In short, it reads `dist/host.js` and `dist/client.js`
+from this repository and registers them through the dynamic-plugin tools:
 
 ```
 cordis_define({
@@ -40,8 +40,8 @@ cordis_define({
   name: 'dsh-voice',
   purpose: 'Voice input with local/API transcription for the DSH Web GUI.',
   code: {
-    host:   <contents of packages/<latest>/host.js>,
-    client: <contents of packages/<latest>/client.js>,
+    host:   <contents of dist/host.js>,
+    client: <contents of dist/client.js>,
   },
 })
 // → pluginId, packageId
@@ -105,10 +105,12 @@ dynamic plugin).
   open-source library [handy-computer/transcribe.cpp](https://github.com/handy-computer/transcribe.cpp).
 - The binary is downloaded with the "Download engine" button from this
   repository's GitHub Releases for the current OS/architecture
-  (`transcribe-cli-{platform}-{arch}`).
-- If a `transcribe-cli` already exists on the machine (e.g. built manually), the
-  plugin **finds it itself** (searches `$HOME`) and copies it into its own
-  directory — no download needed.
+  (`transcribe-cli-{platform}-{arch}`, `.exe` on Windows).
+- If a `transcribe-cli` already exists on `PATH` or next to the configured
+  engine path, the plugin **adopts it** (copies it into its own directory) — no
+  download needed. Discovery is explicit; there is no filesystem sweep.
+- Downloads are verified against a `.sha256` sidecar when one is published
+  (best-effort integrity check).
 - Plugin data (engine, models, temp files) lives in the DSH process launch
   directory (`.engine/`, `.models/`, `.tmp/`) — the sandbox only allows writes
   there. Paths are shown in the settings.
@@ -127,6 +129,13 @@ dynamic plugin).
 Verified on this machine: GigaAM v3 E2E-RNN-T — 30× realtime, Voxtral Mini 4B
 Realtime — 1.7× realtime (20 s of Russian audio), excellent quality.
 
+### API key handling
+
+The OpenAI-compatible API key is **host-only**: it is set via a dedicated RPC
+(`voice/api-key`), never echoed back to the page (the settings show only
+whether a key is set), and is passed to the provider via the `DSHVOICE_API_KEY`
+environment variable — never in argv.
+
 ## DSH contracts the plugin is built on
 
 - Slot `conversation.input.right` — the mic button in the composer tool row
@@ -144,28 +153,41 @@ Realtime — 1.7× realtime (20 s of Russian audio), excellent quality.
 ## Repository layout
 
 ```
-host.js        — Host half (RPC, providers, ffmpeg, downloads, chunking)
-client.js      — Client half (button, recording pill, settings)
-.github/workflows/build-engine.yml — CI builds the engine for 5 platforms
-models.json    — model catalog (source for the inline table in host.js)
+src/host/      — host modules: shell, schema, catalog, platform, downloads,
+                 engine, models, hfcache, RPC handlers, providers (tcpp/whisper/api)
+src/client/    — client modules: style, state, icons, recorder, waveform,
+                 components, settings, slot registrations
+scripts/build-plugin.mjs — builds dist/host.js + dist/client.js from src/
+                           (models.json is injected as the CATALOG table)
+dist/          — generated flat function bodies: the installable artifacts
+test/          — host unit tests + client recorder tests (plain Node, no browser)
+models.json    — model catalog (source of truth for the CATALOG table)
+.github/workflows/build-engine.yml — CI: plugin-tests job + engine builds for 5 platforms
 AGENTS.md      — agent install/update instructions
 README.md      — this document
 ```
 
-`host.js` / `client.js` are the function bodies passed to `cordis_define`
-(`code.host` / `code.client`) — see the Installation section above. The sources
-at the repository root are always the current version; released versions are
-pinned by git tags (`v0.1.1`, …). The `pkg-N` numbering belongs to the DSH
-runtime (immutable package versions inside a live session) and intentionally
-does not leak into this repository.
+`dist/host.js` / `dist/client.js` are the function bodies passed to
+`cordis_define` (`code.host` / `code.client`) — see the Installation section
+above. They are generated from `src/` by `node scripts/build-plugin.mjs` and
+committed with every source change. Released versions are pinned by git tags
+(`v0.2.0`, …). The `pkg-N` numbering belongs to the DSH runtime (immutable
+package versions inside a live session) and intentionally does not leak into
+this repository.
 
 ## Testing
 
-1. Local path verified on a Handy recording sample: webm/opus → base64 (stdin) →
-   ffmpeg → `whisper-cli -oj` → `out.json` (old format: `transcription[].text`).
-   The parser also supports the new format (`text`).
-2. Live test: button → mic recording → waveform → stop/send → text in chat.
-3. API provider: switch in settings, set URL/key/model.
+```
+node scripts/build-plugin.mjs     # regenerate dist/
+node --check dist/host.js         # syntax
+node --check dist/client.js
+node test/run.mjs                 # host logic (config whitelist, platform/assets,
+                                  #   RPC handlers, catalog integrity)
+node test/client.test.mjs         # recorder flow with mocked MediaRecorder/mic
+```
+
+The CI `plugin-tests` job runs all of the above on every push to `main` and on
+every `v*` tag.
 
 ## v1 limitations
 

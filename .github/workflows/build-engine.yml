@@ -2,6 +2,7 @@ name: build-engine
 
 on:
   push:
+    branches: ['main']
     tags: ['v*']
   workflow_dispatch:
 
@@ -9,6 +10,31 @@ permissions:
   contents: write
 
 jobs:
+  plugin-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout dsh-voice
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build plugin bundles
+        run: node scripts/build-plugin.mjs
+
+      - name: Syntax-check bundles
+        run: |
+          node --check dist/host.js
+          node --check dist/client.js
+
+      - name: Run host tests
+        run: node test/run.mjs
+
+      - name: Run client tests
+        run: node test/client.test.mjs
+
   engine:
     strategy:
       fail-fast: false
@@ -73,10 +99,18 @@ jobs:
           mkdir -p dist
           cp "${{ steps.bin.outputs.path }}" "dist/${{ matrix.asset }}"
 
+      - name: Generate checksum sidecar
+        shell: bash
+        run: |
+          cd dist
+          sha256sum "${{ matrix.asset }}" | awk '{print $1}' > "${{ matrix.asset }}.sha256"
+
       - name: Upload asset
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/${{ matrix.asset }}
+          files: |
+            dist/${{ matrix.asset }}
+            dist/${{ matrix.asset }}.sha256
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
