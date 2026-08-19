@@ -36,6 +36,9 @@ jobs:
         run: node test/client.test.mjs
 
   engine:
+    # Engine binaries are release artifacts: build them only on v* tags (and
+    # manual dispatch), not on every push to main.
+    if: startsWith(github.ref, 'refs/tags/v')
     strategy:
       fail-fast: false
       matrix:
