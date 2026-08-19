@@ -49,9 +49,10 @@ async function fileExists(p) {
 }
 
 async function sha256(path) {
-  // Best-effort; empty string means unavailable.
+  // Best-effort; empty string means unavailable. macOS has no sha256sum, so
+  // fall back to `shasum -a 256` (same first-token output format).
   try {
-    const r = await runCmd('sha256sum ' + q(path), { timeoutMs: 60000 })
+    const r = await runCmd('(sha256sum ' + q(path) + ' 2>/dev/null || shasum -a 256 ' + q(path) + ' 2>/dev/null) || true', { timeoutMs: 60000 })
     return String((r.stdout && r.stdout.text) || '').trim().split(/\s+/)[0] || ''
   } catch (e) {
     return ''

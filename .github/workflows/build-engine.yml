@@ -105,8 +105,9 @@ jobs:
       - name: Generate checksum sidecar
         shell: bash
         run: |
-          cd dist
-          sha256sum "${{ matrix.asset }}" | awk '{print $1}' > "${{ matrix.asset }}.sha256"
+          # Node is preinstalled on all GitHub-hosted runners and its crypto
+          # module is OS-independent (macOS has no sha256sum; git-bash does).
+          node -e "const fs=require('fs'),c=require('crypto');const h=c.createHash('sha256');h.update(fs.readFileSync('dist/${{ matrix.asset }}'));fs.writeFileSync('dist/${{ matrix.asset }}.sha256', h.digest('hex'))"
 
       - name: Upload asset
         uses: softprops/action-gh-release@v2
