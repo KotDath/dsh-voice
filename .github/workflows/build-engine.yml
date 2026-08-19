@@ -19,7 +19,8 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # tsdown 0.22 requires ^22.18 || >=24.11 — Node 20 cannot build.
+          node-version: 22
 
       - name: Install dev dependencies
         run: npm install --no-audit --no-fund
