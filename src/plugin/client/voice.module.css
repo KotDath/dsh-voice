@@ -185,3 +185,9 @@
   flex-direction: column;
   gap: 12px;
 }
+/* Same metrics as .voiceHint, error tone. Kept as its own class because
+   .voiceHint is declared later in this file and would win on equal specificity. */
+.voiceHintErr {
+  font-size: 11px;
+  color: var(--dsw-alias-state-error-primary);
+}

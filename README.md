@@ -76,6 +76,8 @@ dsh plugin --profile web remove dsh-voice
 │ inputActions.setDraft + submit  │   { text }   │     tcpp:  transcribe-cli      │
 └─────────────────────────────────┘              │     local: whisper-cli -oj     │
                                                  │     api:   curl multipart     │
+                                                 │     codex: ChatGPT backend    │
+                                                 │       ($CODEX_HOME auth.json) │
                                                  │  • temp file cleanup           │
                                                  └────────────────────────────────┘
 ```
@@ -94,8 +96,45 @@ a plugin bundle).
 | Provider | How it works | Requirements |
 |---|---|---|
 | `tcpp` (default) | the **transcribe.cpp** engine (the same one inside Handy) — a static `transcribe-cli` binary (~5 MB). A catalog of **67 models** (GigaAM v3 CTC/RNN-T/E2E, Voxtral Mini 3B/4B/24B, Whisper tiny…large-v3 (+turbo), Qwen3-ASR, Parakeet, Canary, Moonshine, Nemotron, Granite, SenseVoice, Fun-ASR, Cohere, MedASR…). Model picker dropdown, one-click Hugging Face download with progress | engine (self-downloads for Win/macOS/Linux) |
+| `codex` | the **ChatGPT subscription** behind your local Codex CLI login: the recording goes to the ChatGPT backend speech-to-text endpoint with the OAuth token from `$CODEX_HOME/auth.json` | a `codex login` on the host; no API key, no model download |
 | `local` | whisper.cpp (`whisper-cli`) + one GGML model | paths to the binary and model; offline |
 | `api` | OpenAI-compatible `POST /v1/audio/transcriptions` (multipart) | URL, API key, model name (`gpt-4o-transcribe`, `whisper-1`, Groq, a local faster-whisper server, etc.) |
+
+### Codex / ChatGPT subscription
+
+If the host is already signed in to the Codex CLI with a ChatGPT plan, that
+subscription can transcribe voice input — nothing to download and no API key:
+
+1. `codex login` on the host (once), then **Settings → Voice → Transcription
+   provider → Codex**. The panel shows the account, the plan and the token
+   expiry, and **Test** sends one second of silence through the real path to
+   prove the login, the endpoint and `ffmpeg` in one click.
+2. Record as usual. The whole recording (up to the 5-minute cap) is sent as a
+   single 16 kHz WAV request — unlike the local models, this endpoint keeps
+   context across several minutes, so long dictations no longer need the 20 s
+   chunking used by `tcpp`.
+
+How it behaves:
+
+- **Credentials**: the host reads `$CODEX_HOME/auth.json` (default
+  `~/.codex/auth.json`) and passes the access token to `curl` through the
+  `DSHVOICE_CODEX_TOKEN` environment variable — never in argv, and the token
+  never reaches the page (the settings only ever see the account, plan and
+  expiry). The file can be pointed elsewhere in **Advanced**.
+- **It is never written to.** The plugin does not refresh or rewrite the
+  login: ChatGPT refresh tokens rotate, and a second writer would invalidate
+  the login the Codex CLI itself depends on. If the token expires, the panel
+  says so — run any `codex` command (or `codex login`) to refresh it.
+- **Language**: the endpoint takes a concrete language code (the Language
+  setting is forwarded for `ru`/`en`/`uk`/`de`). `Auto` is not a valid value
+  there and is simply omitted, which is why auto-detect works.
+- **Errors are decoded**, not dumped: an expired login reports the 401 plus
+  the fix, a Cloudflare block reports the 403, and a rate limit reports 429.
+- An `auth.json` in API-key mode is reported as such — that mode cannot use the
+  subscription endpoint.
+
+Measured on this machine: a 5-minute Russian dictation transcribed in one
+request in ~68 s, a 50-second one in ~13 s.
 
 ### transcribe-cli engine: out of the box, no Handy app needed
 
@@ -126,19 +165,33 @@ a plugin bundle).
 Verified on this machine: GigaAM v3 E2E-RNN-T — 30× realtime, Voxtral Mini 4B
 Realtime — 1.7× realtime (20 s of Russian audio), excellent quality.
 
-### API key handling
+### API key and Codex credential handling
 
 The OpenAI-compatible API key is **host-only**: it is set via its own endpoint
 (`POST /api/voice/api-key`), never echoed back to the page (the settings show
 only whether a key is set), and is passed to the provider via the
 `DSHVOICE_API_KEY` environment variable — never in argv.
 
+The Codex provider applies the same rules to the ChatGPT login: the host reads
+`$CODEX_HOME/auth.json`, passes the access token as `DSHVOICE_CODEX_TOKEN`
+(again never in argv), surfaces only the account, plan and expiry to the page,
+and never writes to the file.
+
 ## Development
 
 ```
 npm install          # dev deps (uses .npm-cache/ if ~/.npm is read-only)
 npm run build        # gen-catalog → tsc → tsdown (lib/index.js + lib/client.js)
-npm test             # host + client unit tests (plain Node, no browser)
+npm test             # both Node suites (plain Node, no browser)
+```
+
+`npm test` runs `test/run.mjs` (bundle/catalog contract) and `test/codex.mjs`
+(the Codex provider, mounted on a fake Cordis context — offline by default).
+Add `DSH_VOICE_LIVE=1` to also drive the real ChatGPT backend with the Codex
+login of this host:
+
+```
+DSH_VOICE_LIVE=1 node test/codex.mjs
 ```
 
 The installable artifact is the npm package at the repository root. See
@@ -156,13 +209,14 @@ tsdown.config.ts     — node ESM bundle + browser CJS-closure bundle
 cordis.patch.yml     — the bundle's composition patch (one row: id voice)
 package.json         — dsh.bundle.patch + dsh.client declarations
 models.json          — model catalog (source of truth)
-test/                — host + client unit tests
+test/                — Node suites: run.mjs (bundle contract) + codex.mjs
+                       (Codex provider; DSH_VOICE_LIVE=1 adds real API calls)
 .github/workflows/build-engine.yml — CI: plugin tests + 5-platform engine builds
 AGENTS.md            — agent install/update instructions
 README.md            — this document
 ```
 
-Released versions are pinned by git tags (`v0.3.0`, …).
+Released versions are pinned by git tags (`v0.4.0`, …).
 
 ## v1 limitations
 

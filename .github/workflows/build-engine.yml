@@ -28,8 +28,13 @@ jobs:
       - name: Build plugin bundles
         run: npm run build
 
-      - name: Run host tests
-        run: node test/run.mjs
+      - name: Install ffmpeg
+        # The codex suite drives the real transcribe route, which shells out to ffmpeg.
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Run plugin tests
+        # Both suites. The codex suite is offline here (DSH_VOICE_LIVE is not set).
+        run: npm test
 
       - name: Verify built artifacts
         run: |

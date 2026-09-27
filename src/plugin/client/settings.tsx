@@ -1,6 +1,7 @@
-/** Settings page: provider, engine, model catalog + downloads, language, and an
- *  Advanced section. The API key is set through its own endpoint and only
- *  surfaced as hasKey — the key value never reaches the browser. */
+/** Settings page: provider, engine, model catalog + downloads, Codex login
+ *  status, language, and an Advanced section. The API key is set through its own
+ *  endpoint and only surfaced as hasKey, and the Codex tokens never leave the
+ *  host — the key value never reaches the browser. */
 
 import * as React from 'react'
 import { apiCall } from './recorder.ts'
@@ -8,11 +9,21 @@ import { fmtSize } from './state.ts'
 import styles from './voice.module.css'
 
 interface ConfigView {
-  provider: 'tcpp' | 'local' | 'api'
+  provider: 'tcpp' | 'local' | 'api' | 'codex'
   language: string
   tcpp: { binary: string; modelsDir: string; modelId: string; engineUrl: string }
   local: { binary: string; model: string }
   api: { url: string; model: string; hasKey: boolean }
+  codex: { authPath: string; endpoint: string; model: string }
+}
+
+interface CodexStatusView {
+  state: 'ok' | 'expired' | 'missing' | 'invalid' | 'api_key'
+  authPath: string
+  email: string | null
+  plan: string | null
+  expiresAt: number | null
+  message: string
 }
 
 interface ModelView {
@@ -56,6 +67,15 @@ export function VoiceSettings(): React.JSX.Element {
   const [apiKeyDraft, setApiKeyDraft] = React.useState('')
   const [saved, setSaved] = React.useState('')
   const [showAdvanced, setShowAdvanced] = React.useState(false)
+  const [codex, setCodex] = React.useState<CodexStatusView | null>(null)
+  const [codexTest, setCodexTest] = React.useState('')
+  const [codexTesting, setCodexTesting] = React.useState(false)
+
+  const refreshCodex = (): void => {
+    void apiCall<{ ok: boolean; status?: CodexStatusView }>('/api/voice/codex-status').then((r) => {
+      if (r.ok && r.status) setCodex(r.status)
+    }).catch(() => {})
+  }
 
   function refreshModels(): void {
     void apiCall<ModelsView>('/api/voice/models').then((r) => {
@@ -72,6 +92,7 @@ export function VoiceSettings(): React.JSX.Element {
       if (alive) setCfg(c as unknown as ConfigView)
     }).catch(() => {})
     refreshModels()
+    refreshCodex()
     return () => { alive = false }
   }, [])
 
@@ -97,8 +118,18 @@ export function VoiceSettings(): React.JSX.Element {
   const save = (): void => {
     void apiCall('/api/voice/config', cfg).then(() => {
       setSaved('Saved ✓')
+      refreshCodex()
       window.setTimeout(() => setSaved(''), 2000)
     }).catch(() => setSaved('Save failed'))
+  }
+  const runCodexTest = (): void => {
+    setCodexTesting(true)
+    setCodexTest('')
+    void apiCall<{ ok: boolean; message?: string }>('/api/voice/codex-check', {}).then((r) => {
+      setCodexTest(r.message ?? 'Works')
+    }).catch((e: unknown) => {
+      setCodexTest('Error: ' + (e instanceof Error ? e.message : String(e)))
+    }).finally(() => { setCodexTesting(false) })
   }
   const saveApiKey = (): void => {
     void apiCall('/api/voice/api-key', { key: apiKeyDraft }).then(() => {
@@ -108,7 +139,7 @@ export function VoiceSettings(): React.JSX.Element {
     }).catch(() => setSaved('Save failed'))
   }
 
-  const nestedField = (label: string, group: 'tcpp' | 'local' | 'api', path: 'binary' | 'modelsDir' | 'engineUrl' | 'modelId' | 'model' | 'url', type?: string) => React.createElement('label', { className: styles.voiceField },
+  const nestedField = (label: string, group: 'tcpp' | 'local' | 'api' | 'codex', path: 'binary' | 'modelsDir' | 'engineUrl' | 'modelId' | 'model' | 'url' | 'authPath' | 'endpoint', type?: string) => React.createElement('label', { className: styles.voiceField },
     label,
     React.createElement('input', {
       type: type ?? 'text',
@@ -139,15 +170,49 @@ export function VoiceSettings(): React.JSX.Element {
     (showAdvanced ? '▾ ' : '▸ ') + 'Advanced',
   )
 
+  const codexExpiry = codex && codex.expiresAt
+    ? 'token valid until ' + new Date(codex.expiresAt).toLocaleString()
+    : ''
+  const codexTone = codex === null || codex.state === 'ok'
+    ? styles.voiceHint
+    : styles.voiceHintErr
+  const codexLine = codex === null ? '…' : (codex.state === 'ok' ? '✓ ' : '⚠ ') + codex.message
+
   return React.createElement('div', { className: styles.voiceSettings },
     React.createElement('label', { className: styles.voiceField },
       'Transcription provider',
       React.createElement('select', { value: cfg.provider, onChange: (e: React.ChangeEvent<HTMLSelectElement>) => set('provider', e.target.value) },
         React.createElement('option', { value: 'tcpp' }, 'transcribe.cpp — Handy model catalog (GigaAM, Voxtral, Whisper…)'),
+        React.createElement('option', { value: 'codex' }, 'Codex — ChatGPT subscription (no API key, no downloads)'),
         React.createElement('option', { value: 'local' }, 'whisper.cpp (single GGML model)'),
         React.createElement('option', { value: 'api' }, 'HTTP API (OpenAI-compatible)'),
       ),
     ),
+
+    cfg.provider === 'codex' ? React.createElement('div', null,
+      React.createElement('div', { className: styles.voiceField },
+        'Codex login',
+        React.createElement('div', { className: styles.voiceRow },
+          React.createElement('span', { className: codexTone, style: { flex: 1 } }, codexLine),
+          React.createElement('button', { type: 'button', className: styles.voiceAction, onClick: refreshCodex }, 'Refresh'),
+          React.createElement('button', { type: 'button', className: styles.voiceAction, disabled: codexTesting, onClick: runCodexTest },
+            codexTesting ? 'Testing…' : 'Test'),
+        ),
+        codex && codex.authPath ? React.createElement('div', { className: styles.voiceHint }, codex.authPath + (codexExpiry ? ' · ' + codexExpiry : '')) : null,
+        codexTest ? React.createElement('div', { className: styles.voiceHint }, codexTest) : null,
+      ),
+      React.createElement('div', { className: styles.voiceAdvanced },
+        advancedToggle,
+        showAdvanced ? React.createElement('div', { className: styles.voiceAdvancedBody },
+          nestedField('auth.json path (blank = $CODEX_HOME or ~/.codex)', 'codex', 'authPath'),
+          nestedField('Endpoint', 'codex', 'endpoint'),
+          nestedField('Model (optional — the endpoint ignores it today)', 'codex', 'model'),
+        ) : null,
+      ),
+      React.createElement('div', { className: styles.voiceHint },
+        'Runs on the ChatGPT subscription behind your local Codex CLI login: no API key, no model download, and the whole recording goes in one request. ' +
+        'The tokens are read from disk by the host and never reach the page. If the login expires, run any codex command to refresh it.'),
+    ) : null,
 
     cfg.provider === 'tcpp' ? React.createElement('div', null,
       React.createElement('div', { className: styles.voiceField },
@@ -222,7 +287,7 @@ export function VoiceSettings(): React.JSX.Element {
     ) : null,
 
     React.createElement('label', { className: styles.voiceField },
-      'Language (Whisper models & API)',
+      'Language (Whisper models, API and Codex)',
       React.createElement('select', { value: cfg.language, onChange: (e: React.ChangeEvent<HTMLSelectElement>) => set('language', e.target.value) },
         React.createElement('option', { value: 'auto' }, 'Auto'),
         React.createElement('option', { value: 'ru' }, 'Russian'),

@@ -5,8 +5,9 @@
 // Exit code 0 = all pass.
 
 import { readFileSync, existsSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { resolve, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const results = { pass: 0, fail: 0, failures: [] }
@@ -46,13 +47,42 @@ async function main() {
   ok(!badEntry, `every catalog entry has required fields${badEntry ? ` (missing ${badEntry.missing} in ${badEntry.id})` : ''}`)
   ok(models.every((m) => /^handy-computer\//.test(m.repo || '')), 'all catalog repos are handy-computer org')
 
-  // ---------- client bundle is a module-table closure ----------
+  // ---------- client bundle registers via __ModuleLoader__.load ----------
   const clientSrc = readFileSync(resolve(ROOT, 'lib/client.js'), 'utf8')
   ok(clientSrc.includes('window.__ModuleLoader__.load'), 'client bundle registers via __ModuleLoader__.load')
   ok(clientSrc.includes('dsh-voice'), 'client bundle carries plugin id')
   ok(clientSrc.includes('conversation.input.right'), 'client bundle registers input.right slot')
   ok(clientSrc.includes('conversation.input.dock'), 'client bundle registers input.dock slot')
   ok(clientSrc.includes('settings.section'), 'client bundle registers settings.section slot')
+  ok(clientSrc.includes('/api/voice/codex-status'), 'client bundle talks to the codex-status endpoint')
+  ok(clientSrc.includes('Codex — ChatGPT subscription'), 'client bundle offers the Codex provider')
+
+  // ---------- the bundle actually loads and renders in the loader contract ----------
+  // Feed it the shell's window.__ModuleLoader__ and a require that resolves the
+  // real React, so a bundle broken at factory time fails here, not in the GUI.
+  const entries = []
+  globalThis.window = { __ModuleLoader__: { load: (entry) => entries.push(entry) } }
+  const clientRequire = createRequire(import.meta.url)
+  await import(pathToFileURL(resolve(ROOT, 'lib/client.js')).href)
+  eq(entries.length, 1, 'client bundle loads exactly one module entry')
+  eq(entries[0]?.id, 'dsh-voice', 'module entry id is dsh-voice')
+  let clientExports = null
+  let factoryError = null
+  try { clientExports = entries[0].factory(clientRequire) } catch (e) { factoryError = e }
+  ok(factoryError === null, `client factory runs${factoryError ? `: ${factoryError.message}` : ''}`)
+  for (const name of ['VoiceSettings', 'MicButton', 'RecordPill', 'apply']) {
+    eq(typeof clientExports?.[name], 'function', `client bundle exports ${name}()`)
+  }
+  if (clientExports) {
+    const React = clientRequire('react')
+    const { renderToString } = clientRequire('react-dom/server')
+    let html = ''
+    let renderError = null
+    try { html = renderToString(React.createElement(clientExports.VoiceSettings)) } catch (e) { renderError = e }
+    ok(renderError === null, `VoiceSettings renders${renderError ? `: ${renderError.message}` : ''}`)
+    ok(html.includes('Loading'), 'VoiceSettings renders its loading state before config arrives')
+    delete globalThis.window
+  }
 
   // ---------- cordis.patch.yml declares the plugin row ----------
   const patch = readFileSync(resolve(ROOT, 'cordis.patch.yml'), 'utf8')

@@ -8,11 +8,17 @@
  *   GET  /api/voice/config            — current public config (no API key)
  *   POST /api/voice/config            — apply a sanitized config patch
  *   POST /api/voice/api-key           — set/clear the host-only API key
+ *   GET  /api/voice/codex-status      — Codex CLI login state (no tokens)
+ *   POST /api/voice/codex-check       — live 1 s smoke test of the Codex path
  *   GET  /api/voice/models            — model catalog + engine/platform state
  *   POST /api/voice/download          — start a model download
  *   POST /api/voice/engine-download   — download/verify the transcribe-cli engine
  *   GET  /api/voice/download-status   — poll active downloads
  *   POST /api/voice/transcribe        — audio base64 → text
+ *
+ * Transcription providers: `tcpp` (transcribe.cpp), `local` (whisper.cpp),
+ * `api` (OpenAI-compatible HTTP) and `codex` (the ChatGPT subscription behind
+ * the local Codex CLI login — no API key, no model download).
  *
  * @module dsh-voice
  */
@@ -29,6 +35,7 @@ import { invariant } from './invariant.ts'
 
 export type {
   VoiceConfigView, VoiceModelView, VoiceModelsView, VoiceTranscribeView, VoiceDownloadView,
+  VoiceCodexStatus, VoiceCodexStatusView, VoiceCodexCheckView,
 } from './types.ts'
 export { CATALOG } from './generated-catalog.ts'
 export { invariant } from './invariant.ts'
@@ -39,14 +46,15 @@ export const name = 'dsh-voice'
 // ── config schema (all user-controllable strings validated here) ────────────
 
 const LANGUAGE_CODES = { auto: 1, ru: 1, en: 1, uk: 1, de: 1 } as const
-const PROVIDERS = { tcpp: 1, local: 1, api: 1 } as const
+const PROVIDERS = { tcpp: 1, local: 1, api: 1, codex: 1 } as const
 
 interface VoiceConfig {
-  provider: 'tcpp' | 'local' | 'api'
+  provider: 'tcpp' | 'local' | 'api' | 'codex'
   language: keyof typeof LANGUAGE_CODES
   tcpp: { binary: string; modelsDir: string; modelId: string; engineUrl: string }
   local: { binary: string; model: string }
   api: { url: string; model: string; key: string }
+  codex: { authPath: string; endpoint: string; model: string }
 }
 
 interface VoiceConfigPatch {
@@ -55,6 +63,7 @@ interface VoiceConfigPatch {
   tcpp?: Record<string, unknown>
   local?: Record<string, unknown>
   api?: Record<string, unknown>
+  codex?: Record<string, unknown>
 }
 
 function publicConfigView(config: VoiceConfig) {
@@ -64,6 +73,7 @@ function publicConfigView(config: VoiceConfig) {
     tcpp: { ...config.tcpp },
     local: { ...config.local },
     api: { url: config.api.url, model: config.api.model, hasKey: config.api.key !== '' },
+    codex: { ...config.codex },
   }
 }
 
@@ -75,17 +85,20 @@ function applyConfigPatch(config: VoiceConfig, patch: VoiceConfigPatch | null | 
   if (typeof patch.language === 'string' && (LANGUAGE_CODES as Record<string, number>)[patch.language]) {
     config.language = patch.language as VoiceConfig['language']
   }
-  const groups: Array<'tcpp' | 'local' | 'api'> = ['tcpp', 'local', 'api']
+  const groups: Array<'tcpp' | 'local' | 'api' | 'codex'> = ['tcpp', 'local', 'api', 'codex']
   for (const g of groups) {
     const p = patch[g]
     if (p && typeof p === 'object') {
-      if (typeof p.binary === 'string' && g !== 'api') config[g].binary = p.binary.trim()
+      if (typeof p.binary === 'string' && (g === 'tcpp' || g === 'local')) config[g].binary = p.binary.trim()
       if (g === 'tcpp' && typeof p.modelsDir === 'string') config.tcpp.modelsDir = p.modelsDir.trim()
       if (g === 'tcpp' && typeof p.engineUrl === 'string') config.tcpp.engineUrl = p.engineUrl.trim()
       if (g === 'tcpp' && typeof p.modelId === 'string') config.tcpp.modelId = p.modelId.trim()
       if (g === 'local' && typeof p.model === 'string') config.local.model = p.model.trim()
       if (g === 'api' && typeof p.url === 'string') config.api.url = p.url.trim()
       if (g === 'api' && typeof p.model === 'string') config.api.model = p.model.trim()
+      if (g === 'codex' && typeof p.authPath === 'string') config.codex.authPath = p.authPath.trim()
+      if (g === 'codex' && typeof p.endpoint === 'string') config.codex.endpoint = p.endpoint.trim()
+      if (g === 'codex' && typeof p.model === 'string') config.codex.model = p.model.trim()
     }
   }
 }
@@ -443,6 +456,278 @@ async function transcribeWithApi(config: VoiceConfig, deps: ShellDeps, tmp: stri
   throw new Error('API: unexpected response: ' + outText.slice(0, 300))
 }
 
+// ── Codex (ChatGPT subscription) transcription ──────────────────────────────
+//
+// The Codex CLI signs the user into a ChatGPT subscription and caches the
+// resulting OAuth tokens in `$CODEX_HOME/auth.json` (default `~/.codex/auth.json`).
+// Those same tokens authorize the ChatGPT backend's speech-to-text endpoint, so
+// voice input can run on a Codex/ChatGPT subscription — no API key, no model
+// download, and the whole recording is transcribed in one pass (no 20 s chunking).
+//
+// Credential rules:
+//  - the file is read on the host; the access token reaches curl through the
+//    DSHVOICE_CODEX_TOKEN environment variable (never argv, exactly like the
+//    API-key path) and never reaches the browser;
+//  - the host only ever reads the file. It never refreshes or rewrites it:
+//    ChatGPT refresh tokens rotate, so a second writer would invalidate the
+//    login the Codex CLI depends on. An expired token is reported with the fix
+//    (run any codex command, which refreshes it).
+
+const CODEX_DEFAULT_ENDPOINT = 'https://chatgpt.com/backend-api/transcribe'
+const CODEX_TIMEOUT_MS = 300000
+// The ChatGPT backend rejects requests without a browser-like User-Agent with a
+// Cloudflare 403 (curl's own UA is blocked); any product UA passes.
+const CODEX_USER_AGENT = 'dsh-voice'
+const CODEX_CLAIM_PATH = 'https://api.openai.com/auth'
+const CODEX_PROFILE_CLAIM_PATH = 'https://api.openai.com/profile'
+
+interface FsDeps {
+  resolve(path: string): Promise<unknown>
+  readText(target: unknown): Promise<string>
+}
+
+interface CodexCredentials {
+  accessToken: string
+  accountId: string | null
+  email: string | null
+  plan: string | null
+  expiresAt: number | null
+}
+
+type CodexAuthState = 'ok' | 'expired' | 'missing' | 'invalid' | 'api_key'
+
+interface CodexAuth {
+  state: CodexAuthState
+  authPath: string
+  credentials: CodexCredentials | null
+  message: string
+}
+
+function homeDir(): string {
+  return process.env.HOME?.trim() || process.env.USERPROFILE?.trim() || ''
+}
+
+function defaultCodexAuthPath(): string {
+  const codexHome = process.env.CODEX_HOME?.trim()
+  if (codexHome) return codexHome.replace(/[\\/]+$/, '') + '/auth.json'
+  const home = homeDir().replace(/[\\/]+$/, '')
+  return home ? home + '/.codex/auth.json' : ''
+}
+
+/** Configured path wins; empty means "$CODEX_HOME/auth.json or ~/.codex/auth.json". */
+function codexAuthPath(config: VoiceConfig): string {
+  const configured = config.codex.authPath
+  if (!configured) return defaultCodexAuthPath()
+  if (configured === '~') return homeDir()
+  if (configured.indexOf('~/') === 0) return homeDir() + configured.slice(1)
+  return configured
+}
+
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  const parts = token.split('.')
+  if (parts.length !== 3 || !parts[1]) return null
+  try {
+    const json = Buffer.from(parts[1], 'base64url').toString('utf8')
+    const parsed: unknown = JSON.parse(json)
+    return parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : null
+  } catch {
+    return null
+  }
+}
+
+function recordOf(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null
+}
+
+function nonEmptyString(value: unknown): string | null {
+  return typeof value === 'string' && value.length > 0 ? value : null
+}
+
+function classifyCodexAuth(raw: string, authPath: string): CodexAuth {
+  const missing = 'not found — run `codex login` on this host'
+  if (!raw.trim()) return { state: 'missing', authPath, credentials: null, message: 'Codex auth file ' + authPath + ' ' + missing }
+
+  let parsed: unknown
+  try { parsed = JSON.parse(raw) } catch {
+    return { state: 'invalid', authPath, credentials: null, message: 'Codex auth file ' + authPath + ' is not valid JSON — run `codex login`' }
+  }
+  const file = recordOf(parsed)
+  if (!file) return { state: 'invalid', authPath, credentials: null, message: 'Codex auth file ' + authPath + ' has an unexpected shape — run `codex login`' }
+
+  const tokens = recordOf(file.tokens)
+  const accessToken = nonEmptyString(tokens?.access_token)
+  if (!accessToken) {
+    const authMode = nonEmptyString(file.auth_mode)
+    const apiKey = nonEmptyString(file.OPENAI_API_KEY)
+    if (authMode === 'apikey' || authMode === 'apiKey' || apiKey !== null) {
+      return {
+        state: 'api_key',
+        authPath,
+        credentials: null,
+        message: 'Codex is signed in with an API key — the subscription endpoint needs a ChatGPT login (`codex login`, then remove the API key or log out of it)',
+      }
+    }
+    return { state: 'invalid', authPath, credentials: null, message: 'Codex auth file ' + authPath + ' has no access token — run `codex login`' }
+  }
+
+  const claims = recordOf(decodeJwtPayload(accessToken)?.[CODEX_CLAIM_PATH])
+  const idToken = nonEmptyString(tokens?.id_token)
+  const idClaims = idToken === null ? null : recordOf(decodeJwtPayload(idToken)?.[CODEX_CLAIM_PATH])
+  const payload = decodeJwtPayload(accessToken)
+  const profile = recordOf(payload?.[CODEX_PROFILE_CLAIM_PATH])
+  const accountId =
+    nonEmptyString(tokens?.account_id) ??
+    nonEmptyString(claims?.chatgpt_account_id) ??
+    nonEmptyString(idClaims?.chatgpt_account_id) ??
+    null
+
+  const exp = payload?.exp
+  const expiresAt = typeof exp === 'number' ? exp * 1000 : null
+  const expired = expiresAt !== null && Date.now() >= expiresAt
+  const email = nonEmptyString(payload?.email) ?? nonEmptyString(profile?.email)
+  const plan = nonEmptyString(claims?.chatgpt_plan_type) ?? nonEmptyString(idClaims?.chatgpt_plan_type)
+  const credentials: CodexCredentials = {
+    accessToken,
+    accountId,
+    email,
+    plan,
+    expiresAt,
+  }
+  const who = email !== null ? email + (plan !== null ? ' (' + plan + ')' : '') : (plan ?? 'this account')
+  return expired
+    ? {
+        state: 'expired',
+        authPath,
+        credentials,
+        message: 'Codex token for ' + who + ' expired ' + new Date(expiresAt ?? Date.now()).toISOString().slice(0, 16).replace('T', ' ') +
+          ' — run any codex command (or `codex login`) to refresh it',
+      }
+    : { state: 'ok', authPath, credentials, message: 'Signed in to Codex as ' + who }
+}
+
+async function readCodexAuth(deps: ShellDeps, fsDeps: FsDeps, authPath: string): Promise<CodexAuth> {
+  if (!authPath) {
+    return { state: 'missing', authPath, credentials: null, message: 'No Codex auth path: set HOME/CODEX_HOME or an explicit path in Settings → Voice' }
+  }
+  // The fs service is the sandbox-aware reader; `cat` through the shell service
+  // is the fallback for deployments where the path sits outside the fs roots.
+  let raw: string | null = null
+  try {
+    raw = await fsDeps.readText(await fsDeps.resolve(authPath))
+  } catch {
+    try {
+      const r = await runCmd(deps, 'cat ' + q(authPath) + ' 2>/dev/null || true', { timeoutMs: 10000 })
+      const text = String(r.stdout?.text ?? '')
+      if (text.trim()) raw = text
+    } catch { /* unreadable — reported as missing below */ }
+  }
+  if (raw === null) {
+    return { state: 'missing', authPath, credentials: null, message: 'Codex auth file ' + authPath + ' not found — run `codex login` on this host' }
+  }
+  return classifyCodexAuth(raw, authPath)
+}
+
+function codexAuthView(auth: CodexAuth) {
+  return {
+    state: auth.state,
+    authPath: auth.authPath,
+    email: auth.credentials?.email ?? null,
+    plan: auth.credentials?.plan ?? null,
+    expiresAt: auth.credentials?.expiresAt ?? null,
+    message: auth.message,
+  }
+}
+
+/** Pull a human-readable reason out of a ChatGPT backend error body. */
+function codexErrorDetail(body: string): string {
+  const text = body.trim()
+  if (!text) return ''
+  if (text.charAt(0) === '{') {
+    try {
+      const parsed: unknown = JSON.parse(text)
+      const obj = recordOf(parsed)
+      const detail = nonEmptyString(obj?.detail)
+      if (detail) return detail
+      const message = nonEmptyString(recordOf(obj?.error)?.message)
+      if (message) return message
+    } catch { /* fall through to the raw slice */ }
+  }
+  if (/<html/i.test(text)) return 'HTML challenge page (Cloudflare)'
+  return text.replace(/\s+/g, ' ').slice(0, 200)
+}
+
+function codexHttpError(status: number, body: string, language: string): Error {
+  const detail = codexErrorDetail(body)
+  const suffix = detail ? ': ' + detail : ''
+  if (status === 401) {
+    return new Error('Codex login rejected (401)' + suffix + ' — run any codex command (or `codex login`) to refresh the token')
+  }
+  if (status === 403) {
+    return new Error('ChatGPT refused the request (403)' + suffix + ' — the endpoint sits behind Cloudflare; retry or check the network')
+  }
+  if (status === 429) return new Error('Codex subscription is rate limited (429)' + suffix + ' — retry in a moment')
+  if (status >= 500) {
+    // The endpoint answers 500 for an unsupported `language` value ("Error in
+    // ASR API"), so point at the one setting that can cause it.
+    const hint = language !== 'auto' ? ' — if this repeats, set Language to Auto' : ''
+    return new Error('Codex transcription failed (' + status + ')' + suffix + hint)
+  }
+  return new Error('Codex transcription failed (' + status + ')' + suffix)
+}
+
+async function transcribeWithCodex(
+  config: VoiceConfig,
+  deps: ShellDeps,
+  fsDeps: FsDeps,
+  tmp: string,
+): Promise<string> {
+  if (!config.codex.endpoint) throw new Error('Codex endpoint is not set (Settings → Voice → Codex)')
+  const authPath = codexAuthPath(config)
+  const auth = await readCodexAuth(deps, fsDeps, authPath)
+  const cred = auth.credentials
+  // States without credentials (missing / invalid / api_key) fail fast. An
+  // `expired` login is still attempted — the server is the authority on the
+  // token, and a token refreshed by the Codex CLI since our read works fine.
+  if (cred === null) throw new Error(auth.message)
+
+  // `auto` is not a valid value for this endpoint (it answers 500), so the
+  // language field is only sent when the user picked a concrete language.
+  const langArg = config.language !== 'auto' ? ' -F ' + q('language=' + config.language) : ''
+  const modelArg = config.codex.model ? ' -F ' + q('model=' + config.codex.model) : ''
+  // The endpoint picks the default account when the header is absent, so an
+  // auth file without an account id still works.
+  const accountHeader = cred.accountId !== null ? ' -H ' + '"chatgpt-account-id: $DSHVOICE_CODEX_ACCOUNT"' : ''
+  const cmd = 'curl -sS --max-time ' + Math.round(CODEX_TIMEOUT_MS / 1000) +
+    ' -o ' + q(tmp + '/codex.json') + ' -w ' + q('%{http_code}') +
+    ' -X POST ' + q(config.codex.endpoint) +
+    ' -H ' + '"Authorization: Bearer $DSHVOICE_CODEX_TOKEN"' +
+    accountHeader +
+    ' -H ' + q('originator: ' + CODEX_USER_AGENT) +
+    ' -H ' + q('User-Agent: ' + CODEX_USER_AGENT) +
+    ' -F ' + q('file=@' + tmp + '/in.wav;type=audio/wav') +
+    langArg + modelArg
+
+  const env = { DSHVOICE_CODEX_TOKEN: cred.accessToken, DSHVOICE_CODEX_ACCOUNT: cred.accountId ?? '' }
+  const result = await runCmd(deps, cmd, { timeoutMs: CODEX_TIMEOUT_MS + 10000, env })
+  const status = parseInt(String(result.stdout?.text ?? '').trim(), 10) || 0
+  let body = ''
+  try { body = await fsDeps.readText(await fsDeps.resolve(tmp + '/codex.json')) } catch { body = '' }
+  if (status !== 200) throw codexHttpError(status, body, config.language)
+
+  let parsed: unknown
+  try { parsed = JSON.parse(body) } catch {
+    throw new Error('Codex: unexpected response: ' + body.slice(0, 300))
+  }
+  const text = recordOf(parsed)?.text
+  // An empty string is a valid answer (silence / no speech), not a failure.
+  if (typeof text !== 'string') throw new Error('Codex: response carries no transcript text: ' + body.slice(0, 300))
+  return text
+}
+
 // ── HTTP helpers ────────────────────────────────────────────────────────────
 
 function json(res: ServerResponse, value: unknown, status = 200): void {
@@ -508,10 +793,11 @@ export function apply(ctx: Context): void {
     },
     local: { binary: '', model: '' },
     api: { url: 'https://api.openai.com/v1/audio/transcriptions', model: 'gpt-4o-transcribe', key: '' },
+    codex: { authPath: '', endpoint: CODEX_DEFAULT_ENDPOINT, model: '' },
   }
 
   const deps: ShellDeps = { shell: shell as ShellDeps['shell'] }
-  const fsDeps = fs as { resolve(path: string): Promise<unknown>; readText(target: unknown): Promise<string> }
+  const fsDeps = fs as FsDeps
 
   function tmpdir(): string {
     return (wsRoot ?? process.cwd()) + '/.tmp/voice-' + Date.now() + '-' + Math.floor(Math.random() * 1000000)
@@ -545,6 +831,35 @@ export function apply(ctx: Context): void {
     const key = typeof body.key === 'string' ? body.key : ''
     config.api.key = key
     json(res, { ok: true, hasKey: key !== '' })
+  })
+
+  // GET /api/voice/codex-status — Codex CLI login state (never tokens).
+  registerRoute('/api/voice/codex-status', async (req, res) => {
+    try {
+      const auth = await readCodexAuth(deps, fsDeps, codexAuthPath(config))
+      json(res, { ok: true, status: codexAuthView(auth) })
+    } catch (error) {
+      json(res, { ok: false, error: error instanceof Error ? error.message : String(error) })
+    }
+  })
+
+  // POST /api/voice/codex-check — 1 s of silence through the real Codex path:
+  // proves the login, the endpoint and ffmpeg in one click.
+  registerRoute('/api/voice/codex-check', async (req, res) => {
+    let tmp: string | null = null
+    try {
+      tmp = tmpdir()
+      await runCmd(deps, 'mkdir -p ' + q(tmp), { timeoutMs: 10000 })
+      await runCmd(deps, 'ffmpeg -y -hide_banner -loglevel error -f lavfi -i anullsrc=r=16000:cl=mono -t 1 -c:a pcm_s16le ' + q(tmp + '/in.wav'), { timeoutMs: 30000 })
+      await transcribeWithCodex(config, deps, fsDeps, tmp)
+      json(res, { ok: true, message: 'Codex transcription works (login accepted, endpoint reachable).' })
+    } catch (error) {
+      json(res, { ok: false, error: error instanceof Error ? error.message : String(error) })
+    } finally {
+      if (tmp) {
+        try { await runCmd(deps, 'rm -rf ' + q(tmp), { timeoutMs: 10000 }) } catch { /* noop */ }
+      }
+    }
   })
 
   // GET /api/voice/models
@@ -636,14 +951,20 @@ export function apply(ctx: Context): void {
       else if (mime.indexOf('mp4') >= 0) ext = 'm4a'
       else if (mime.indexOf('ogg') >= 0) ext = 'ogg'
       else if (mime.indexOf('wav') >= 0) ext = 'wav'
-      await runCmd(deps, 'base64 -d > ' + q(tmp + '/in.' + ext), { stdin: body.dataBase64, timeoutMs: 30000 })
-      await runCmd(deps, 'ffmpeg -y -hide_banner -loglevel error -i ' + q(tmp + '/in.' + ext) + ' -ar 16000 -ac 1 -c:a pcm_s16le ' + q(tmp + '/in.wav'), { timeoutMs: 30000 })
+      // The raw upload lands in src.<ext> so that a WAV upload cannot collide
+      // with the normalized in.wav every provider reads.
+      await runCmd(deps, 'base64 -d > ' + q(tmp + '/src.' + ext), { stdin: body.dataBase64, timeoutMs: 30000 })
+      await runCmd(deps, 'ffmpeg -y -hide_banner -loglevel error -i ' + q(tmp + '/src.' + ext) + ' -ar 16000 -ac 1 -c:a pcm_s16le ' + q(tmp + '/in.wav'), { timeoutMs: 30000 })
 
       let text = ''
       if (config.provider === 'tcpp') {
         text = await transcribeWithTcpp(config, deps, fsDeps, tmp)
       } else if (config.provider === 'api') {
         text = await transcribeWithApi(config, deps, tmp)
+      } else if (config.provider === 'codex') {
+        // No chunking: the ChatGPT backend transcribed a full 5-minute
+        // recording (the plugin's recording cap) in one pass.
+        text = await transcribeWithCodex(config, deps, fsDeps, tmp)
       } else {
         text = await transcribeWithWhisper(config, deps, fsDeps, tmp)
       }

@@ -1,7 +1,7 @@
 {
   "name": "dsh-voice",
-  "version": "0.3.0",
-  "description": "ChatGPT-style voice input for the DeepSeek Harness Web GUI: mic button, recording pill with live waveform, transcription via transcribe.cpp (Handy model catalog), whisper.cpp, or an OpenAI-compatible API",
+  "version": "0.4.0",
+  "description": "ChatGPT-style voice input for the DeepSeek Harness Web GUI: mic button, recording pill with live waveform, transcription via transcribe.cpp (Handy model catalog), whisper.cpp, the Codex/ChatGPT subscription, or an OpenAI-compatible API",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -44,7 +44,8 @@
     "prepack": "npm run build",
     "build": "node scripts/gen-catalog.mjs && tsc -p tsconfig.json && tsdown -c tsdown.config.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node test/run.mjs"
+    "test": "node test/run.mjs && node test/codex.mjs",
+    "test:live": "DSH_VOICE_LIVE=1 node test/codex.mjs"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
