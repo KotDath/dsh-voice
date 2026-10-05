@@ -28,6 +28,11 @@ jobs:
       - name: Build plugin bundles
         run: npm run build
 
+      - name: Verify committed bundles match src
+        # The build is deterministic, so a diff here means lib/ or the generated
+        # catalog was committed stale.
+        run: git diff --exit-code -- lib src/plugin/generated-catalog.ts
+
       - name: Install ffmpeg
         # The codex suite drives the real transcribe route, which shells out to ffmpeg.
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
