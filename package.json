@@ -1,6 +1,6 @@
 {
   "name": "dsh-voice",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "ChatGPT-style voice input for the DeepSeek Harness Web GUI: mic button, recording pill with live waveform, transcription via transcribe.cpp (Handy model catalog), whisper.cpp, the Codex/ChatGPT subscription, or an OpenAI-compatible API",
   "type": "module",
   "main": "lib/index.js",
