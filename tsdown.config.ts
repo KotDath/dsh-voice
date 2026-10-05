@@ -18,7 +18,7 @@
  * removes plugin-owned tags on unload).
  */
 import { readFile } from 'node:fs/promises'
-import { basename, dirname, resolve as resolvePath } from 'node:path'
+import { basename, dirname, relative, resolve as resolvePath, sep } from 'node:path'
 import type { UserConfig } from 'tsdown'
 import { transform } from 'lightningcss'
 
@@ -36,6 +36,19 @@ const EXTERNALS: readonly string[] = [...PLATFORM_MODULES]
 /** Virtual-id wrapper keeping module CSS away from tsdown's own css pipeline. */
 const CSS_VIRTUAL_PREFIX = '\0dsh-css:'
 const CSS_VIRTUAL_SUFFIX = '.mjs'
+
+/** Absolute source file behind every virtual CSS id, for reading and watching. */
+const cssSources = new Map<string, string>()
+
+/**
+ * Package-relative posix path of a source file. Both lightningcss's module hash
+ * and rolldown's region comment are derived from the name a module is given, so
+ * an absolute path would make `lib/client.js` differ between checkouts — and
+ * fail the CI "committed bundles match src" check — for byte-identical sources.
+ */
+function stableModuleName(filename: string): string {
+  return relative(process.cwd(), filename).split(sep).join('/')
+}
 
 export default [
   {
@@ -70,16 +83,21 @@ export default [
       resolveId(source: string, importer: string | undefined) {
         if (!source.endsWith('.module.css')) return null
         const abs = importer !== undefined ? resolvePath(dirname(importer), source) : source
-        return CSS_VIRTUAL_PREFIX + abs + CSS_VIRTUAL_SUFFIX
+        const id = CSS_VIRTUAL_PREFIX + stableModuleName(abs) + CSS_VIRTUAL_SUFFIX
+        cssSources.set(id, abs)
+        return id
       },
       async load(virtualId: string) {
         if (!virtualId.startsWith(CSS_VIRTUAL_PREFIX)) return null
-        const fileId = virtualId.slice(CSS_VIRTUAL_PREFIX.length, -CSS_VIRTUAL_SUFFIX.length)
+        const fileId = cssSources.get(virtualId)
+        if (fileId === undefined) return null
         // The virtual id otherwise hides the physical stylesheet from Rolldown's watch graph.
         this.addWatchFile(fileId)
         const source = await readFile(fileId)
         const { code, exports: cssExports } = transform({
-          filename: fileId,
+          // Package-relative, so the emitted module hash and the region comment
+          // are identical in every checkout (see stableModuleName).
+          filename: stableModuleName(fileId),
           code: source,
           cssModules: { pattern: '[hash]_[local]' },
           minify: true,
