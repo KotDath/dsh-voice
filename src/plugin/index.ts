@@ -132,11 +132,44 @@ function q(s: string): string {
   return '"' + String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\$/g, '\\$').replace(/`/g, '\\`') + '"'
 }
 
-interface ShellDeps {
-  shell: { resolve(request: unknown): unknown; run(spec: unknown): Promise<{ exitCode: number; timedOut?: boolean; stdout?: { text?: string }; stderr?: { text?: string } }> }
+/** One foreground command's outcome, as both generations of the seam return it. */
+interface ShellRunResult {
+  exitCode: number | null
+  signal?: string | null
+  timedOut?: boolean
+  stdout?: { text?: string }
+  stderr?: { text?: string }
 }
 
+/**
+ * The `ctx.shell` seam changed shape between harness releases:
+ *
+ * - 0.1 — `resolve(request)` + `run(spec)`: the executor runs the command and
+ *   resolves with the foreground result directly.
+ * - 0.2 — `resolve(request)` + `execute(spec)`: the executor resolves with a
+ *   process handle whose foreground projection is `await handle.result()`
+ *   (`run` is gone; calling it is the `deps.shell.run is not a function`
+ *   failure).
+ *
+ * Both generations are accepted so one bundle works on either harness;
+ * `execute().result()` is the live path and `run` is the legacy fallback.
+ */
+interface ShellSeam {
+  resolve(request: unknown): unknown
+  execute?(spec: unknown): Promise<{ result(): Promise<ShellRunResult> }>
+  run?(spec: unknown): Promise<ShellRunResult>
+}
+
+interface ShellDeps { shell: ShellSeam }
+
 interface CmdResult { stdout?: { text?: string }; stderr?: { text?: string } }
+
+/** Run one resolved spec on whichever seam generation this harness exposes. */
+async function runShell(shell: ShellSeam, spec: unknown): Promise<ShellRunResult> {
+  if (typeof shell.execute === 'function') return await (await shell.execute(spec)).result()
+  if (typeof shell.run === 'function') return await shell.run(spec)
+  throw new Error('the harness shell service has neither execute() (harness 0.2) nor run() (harness 0.1) — dsh-voice cannot run commands')
+}
 
 async function runCmd(deps: ShellDeps, command: string, opts: { workdir?: string; stdin?: string; timeoutMs?: number; env?: Record<string, string> } = {}): Promise<CmdResult> {
   const spec = deps.shell.resolve({
@@ -147,11 +180,15 @@ async function runCmd(deps: ShellDeps, command: string, opts: { workdir?: string
     stdoutMaxBytes: 4 * 1024 * 1024,
     env: opts.env,
   })
-  const result = await deps.shell.run(spec)
+  const result = await runShell(deps.shell, spec)
   if (result.exitCode !== 0) {
     const stderrText = result.stderr?.text ?? ''
     const stdoutText = result.stdout?.text ?? ''
-    throw new Error('command failed (exit ' + result.exitCode + (result.timedOut ? ', timeout' : '') + '): ' + (stderrText || stdoutText || '').slice(0, 400))
+    // A killed process reports no exit code, so name the signal instead.
+    const why = result.exitCode === null
+      ? (result.signal ? 'signal ' + result.signal : 'no exit code')
+      : 'exit ' + result.exitCode
+    throw new Error('command failed (' + why + (result.timedOut ? ', timeout' : '') + '): ' + (stderrText || stdoutText || '').slice(0, 400))
   }
   return result
 }

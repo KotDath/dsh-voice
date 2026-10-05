@@ -34,31 +34,57 @@ function skip(label) { results.skipped++; console.log('  ~ skipped: ' + label) }
 
 // ── fake Cordis context ─────────────────────────────────────────────────────
 
-function makeShell() {
-  return {
-    resolve: (request) => request,
-    run: (spec) => new Promise((res) => {
-      const child = execCb(spec.command, {
-        cwd: spec.workdir || process.cwd(),
-        env: { ...process.env, ...(spec.env ?? {}) },
-        maxBuffer: spec.stdoutMaxBytes ?? 8 * 1024 * 1024,
-        timeout: spec.timeoutMs ?? 30000,
-        shell: '/bin/bash',
-      }, (err, stdout, stderr) => {
-        if (err && err.killed) {
-          res({ exitCode: 124, timedOut: true, stdout: { text: stdout ?? '' }, stderr: { text: stderr ?? '' } })
-          return
-        }
-        res({
-          exitCode: err ? (typeof err.code === 'number' ? err.code : 1) : 0,
-          stdout: { text: stdout ?? '' },
-          stderr: { text: stderr ?? '' },
-        })
+function makeShellShape() {
+  // One command, executed the way a real executor does it: through /bin/bash.
+  const spawn = (spec) => new Promise((res) => {
+    const child = execCb(spec.command, {
+      cwd: spec.workdir || process.cwd(),
+      env: { ...process.env, ...(spec.env ?? {}) },
+      maxBuffer: spec.stdoutMaxBytes ?? 8 * 1024 * 1024,
+      timeout: spec.timeoutMs ?? 30000,
+      shell: '/bin/bash',
+    }, (err, stdout, stderr) => {
+      if (err && err.killed) {
+        res({ exitCode: 124, timedOut: true, stdout: { text: stdout ?? '' }, stderr: { text: stderr ?? '' } })
+        return
+      }
+      res({
+        exitCode: err ? (typeof err.code === 'number' ? err.code : 1) : 0,
+        stdout: { text: stdout ?? '' },
+        stderr: { text: stderr ?? '' },
       })
-      child.stdin.on('error', () => {})
-      child.stdin.end(spec.stdin ?? '')
-    }),
+    })
+    child.stdin.on('error', () => {})
+    child.stdin.end(spec.stdin ?? '')
+  })
+  // `resolve` fills the fields the executor owns, exactly like the real one.
+  const resolve = (request) => ({
+    ...request,
+    workdir: request.workdir ?? process.cwd(),
+    timeoutMs: request.timeoutMs ?? 30000,
+    onExpiry: request.onExpiry ?? 'kill',
+    stdoutMaxBytes: request.stdoutMaxBytes ?? 8 * 1024 * 1024,
+  })
+  return { resolve, spawn }
+}
+
+// The harness this bundle ships to runs `ctx.shell` in its 0.2 shape:
+// `resolve(request)` + `execute(spec)` → a handle whose foreground projection
+// is `result()`. `run` no longer exists there. The double therefore does NOT
+// define it by default — the earlier double did, which is what hid
+// `deps.shell.run is not a function` until it hit a live host.
+function makeShell() {
+  const { resolve, spawn } = makeShellShape()
+  return {
+    resolve,
+    execute: async (spec) => ({ result: () => spawn(spec) }),
   }
+}
+
+// Harness 0.1 seam, kept as the legacy fallback the bundle still supports.
+function makeLegacyShell() {
+  const { resolve, spawn } = makeShellShape()
+  return { resolve, run: (spec) => spawn(spec) }
 }
 
 function makeFs() {
@@ -68,9 +94,8 @@ function makeFs() {
   }
 }
 
-async function mount() {
+async function mount(shell = makeShell()) {
   const routes = new Map()
-  const shell = makeShell()
   const fs = makeFs()
   const webServer = {
     register(row) {
@@ -228,6 +253,14 @@ async function main() {
   r = await call(routes, '/api/voice/transcribe', { method: 'POST', body: { dataBase64: silenceWavBase64(), mimeType: 'audio/wav' } })
   eq(r.body.ok, false, 'transcribe without a ChatGPT login fails')
   ok(/API key|codex login/i.test(r.body.error ?? ''), 'failure explains the API-key/chatgpt-login mix-up (got: ' + (r.body.error ?? '') + ')')
+
+  // ---------- harness 0.1 seam: the legacy run() fallback still works ----------
+  // The same bundle also has to serve a host still running the older shell
+  // seam, where the executor is `resolve()` + `run()` and has no `execute()`.
+  const legacyRoutes = await mount(makeLegacyShell())
+  r = await call(legacyRoutes, '/api/voice/models')
+  eq(r.body.ok, true, 'legacy shell seam: /api/voice/models answers ok (got: ' + (r.body.error ?? '') + ')')
+  ok(typeof r.body.platform?.os === 'string', 'legacy shell seam: platform detection ran commands through run()')
 
   // ---------- live: real login, real endpoint ----------
   const realAuth = resolve(process.env.CODEX_HOME_REAL ?? resolve(homedir(), '.codex'), 'auth.json')

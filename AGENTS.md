@@ -168,6 +168,7 @@ Endpoints:
 | Codex provider: 403 or an HTML body | Cloudflare: the request had no browser-like `User-Agent`. Keep `CODEX_USER_AGENT`. |
 | Codex provider: 500 "Error in ASR API" | An unsupported `language` value was sent — `auto` is rejected, so it must be omitted (the code already does). |
 | `lib/*` looks stale | Rebuild with `npm run build`; committed artifacts must match `src/`. |
+| `deps.shell.run is not a function` | The `ctx.shell` seam was renamed in harness 0.2: 0.1 was `resolve()` + `run(spec)` + `start(spec)`, 0.2 is `resolve()` + `execute(spec)` → `await handle.result()`. `runShell()` in `src/plugin/index.ts` speaks both, so this error means the mounted bundle is older than the fix. The devDependencies still pin the 0.1-era `@deepseek-ai/*` types, where `run` exists — `tsc` therefore cannot catch this drift; the shell doubles in `test/codex.mjs` implement the live 0.2 shape (`execute`/`result`, no `run`) plus one legacy-change case for that reason. |
 
 ## Repository conventions
 
