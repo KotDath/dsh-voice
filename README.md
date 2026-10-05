@@ -22,8 +22,10 @@ history fades left into a dim dotted baseline (like ChatGPT's voice mode).
 
 - A running DeepSeek Harness with the Web GUI (Node.js quick start:
   `npx @deepseek-ai/dsh web`, default `http://127.0.0.1:3080`).
-- On the host machine: `bash`, `curl` (engine/model downloads), `ffmpeg` (audio
-  conversion). The transcribe.cpp engine is downloaded automatically per
+- A **POSIX host** (Linux/macOS): the host half runs `bash`, `curl` (engine and
+  model downloads) and `ffmpeg` (audio conversion). Windows is not supported —
+  there `ctx.shell` is PowerShell, so the plugin logs one warning and registers
+  nothing. The transcribe.cpp engine is downloaded automatically per
   OS/architecture from this repository's Releases — or adopted from `PATH` / a
   sibling `.engine/` dir if a `transcribe-cli` binary already exists.
 - A browser with mic access over HTTPS or localhost.
@@ -98,8 +100,11 @@ plugins (e.g. dsh-track).
 
 ## Transcription providers
 
-Switchable in **Settings → Voice** (state is kept in memory, as expected from
-a plugin bundle).
+Switchable in **Settings → Voice**. The choice (provider, language, paths and
+the host-only API key) is persisted on the host in
+`<launch-dir>/.dsh-voice/state.json` — directory `0700`, file `0600` — so it
+survives both a `dsh web` restart and a plugin re-mount. Delete that file to
+reset the plugin to its defaults.
 
 | Provider | How it works | Requirements |
 |---|---|---|

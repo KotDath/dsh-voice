@@ -13,7 +13,7 @@
 
 import { exec as execCb } from 'node:child_process'
 import { EventEmitter } from 'node:events'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -94,7 +94,11 @@ function makeFs() {
   }
 }
 
-async function mount(shell = makeShell()) {
+// Warnings the plugin logged through ctx.logger during a mount. Each mount
+// appends, so a test reads its own tail.
+const mountWarnings = []
+
+async function mount(shell = makeShell(), { workspaceRoot, logger } = {}) {
   const routes = new Map()
   const fs = makeFs()
   const webServer = {
@@ -103,9 +107,17 @@ async function mount(shell = makeShell()) {
       return () => routes.delete(row.path)
     },
   }
+  // A mount owns its data root: the plugin persists its settings under
+  // <workspaceRoot>/.dsh-voice, and tests must not write into the checkout.
+  const root = workspaceRoot ?? mkdtempSync(resolve(tmpdir(), 'dsh-voice-ws-'))
   const ctx = {
-    get: (name) => ({ shell, fs, webServer })[name],
+    get: (name) => ({ shell, fs, webServer, sandboxPolicy: { workspaceRoot: root } })[name],
     effect: (fn) => { const d = fn(); return () => { if (typeof d === 'function') d() } },
+    logger: logger ?? {
+      warn: (m) => mountWarnings.push(String(m)),
+      info: () => {},
+      error: (m) => mountWarnings.push(String(m)),
+    },
   }
   const host = await import(resolve(ROOT, 'lib/index.js'))
   host.apply(ctx)
@@ -128,9 +140,18 @@ function call(routes, path, { method = 'GET', body = null } = {}) {
       },
     }
     Promise.resolve(handler(req, response)).catch(rej)
-    process.nextTick(() => {
-      if (body !== null) req.emit('data', JSON.stringify(body))
-      req.emit('end')
+    // A real IncomingMessage buffers until the handler listens, and the plugin
+    // reads the body only after awaiting its settings load — so deliver the
+    // payload once the handler actually attaches its `end` listener instead of
+    // racing it from the outside.
+    let delivered = false
+    req.on('newListener', (event) => {
+      if (event !== 'end' || delivered) return
+      delivered = true
+      setImmediate(() => {
+        if (body !== null) req.emit('data', JSON.stringify(body))
+        req.emit('end')
+      })
     })
   })
 }
@@ -261,6 +282,59 @@ async function main() {
   r = await call(legacyRoutes, '/api/voice/models')
   eq(r.body.ok, true, 'legacy shell seam: /api/voice/models answers ok (got: ' + (r.body.error ?? '') + ')')
   ok(typeof r.body.platform?.os === 'string', 'legacy shell seam: platform detection ran commands through run()')
+
+  // ---------- settings survive a restart (and a plugin re-mount) ----------
+  const stateRoot = mkdtempSync(resolve(tmpdir(), 'dsh-voice-state-'))
+  const firstBoot = await mount(undefined, { workspaceRoot: stateRoot })
+  await call(firstBoot, '/api/voice/config', {
+    method: 'POST',
+    body: {
+      provider: 'api',
+      language: 'ru',
+      api: { url: 'https://example.invalid/v1/audio/transcriptions', model: 'gpt-4o-mini-transcribe' },
+      codex: { endpoint: 'https://example.invalid/transcribe' },
+    },
+  })
+  const keyPosted = await call(firstBoot, '/api/voice/api-key', { method: 'POST', body: { key: 'sk-secret-test' } })
+  eq(keyPosted.body.hasKey, true, 'api-key endpoint reports hasKey')
+
+  const stateFile = resolve(stateRoot, '.dsh-voice/state.json')
+  ok(existsSync(stateFile), 'settings are written to <workspaceRoot>/.dsh-voice/state.json')
+  eq(statSync(stateFile).mode & 0o777, 0o600, 'the settings file is 0600 (it holds the host-only API key)')
+
+  // A fresh mount on the same root is exactly what a `dsh web` restart does.
+  const secondBoot = await mount(undefined, { workspaceRoot: stateRoot })
+  r = await call(secondBoot, '/api/voice/config')
+  eq(r.body.provider, 'api', 'a restart keeps the provider')
+  eq(r.body.language, 'ru', 'a restart keeps the language')
+  eq(r.body.api.url, 'https://example.invalid/v1/audio/transcriptions', 'a restart keeps the API URL')
+  eq(r.body.api.model, 'gpt-4o-mini-transcribe', 'a restart keeps the API model')
+  eq(r.body.codex.endpoint, 'https://example.invalid/transcribe', 'a restart keeps the codex endpoint')
+  eq(r.body.api.hasKey, true, 'a restart keeps the API key, reported as hasKey only')
+  ok(!JSON.stringify(r.body).includes('sk-secret-test'), 'the API key never reaches the page')
+
+  // A damaged file degrades to defaults instead of breaking every route.
+  writeFileSync(stateFile, '{ not json')
+  const thirdBoot = await mount(undefined, { workspaceRoot: stateRoot })
+  r = await call(thirdBoot, '/api/voice/config')
+  eq(r.body.ok, true, 'a damaged settings file still answers')
+  eq(r.body.provider, 'tcpp', 'a damaged settings file falls back to defaults')
+  ok(mountWarnings.some((w) => w.includes(stateFile)), 'the damaged settings file is reported through the logger')
+
+  // ---------- the host half refuses Windows (ctx.shell there is PowerShell) ----------
+  const realPlatform = process.platform
+  const windowsWarnings = []
+  let windowsRoutes = null
+  try {
+    Object.defineProperty(process, 'platform', { value: 'win32' })
+    windowsRoutes = await mount(undefined, {
+      logger: { warn: (m) => windowsWarnings.push(String(m)), info: () => {}, error: () => {} },
+    })
+  } finally {
+    Object.defineProperty(process, 'platform', { value: realPlatform })
+  }
+  eq(windowsRoutes.size, 0, 'no /api/voice/* route is registered on Windows')
+  ok(windowsWarnings.join(' ').includes('Windows'), 'the Windows refusal names the platform')
 
   // ---------- live: real login, real endpoint ----------
   const realAuth = resolve(process.env.CODEX_HOME_REAL ?? resolve(homedir(), '.codex'), 'auth.json')

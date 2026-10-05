@@ -90,8 +90,8 @@ Either way the files on disk are current while the row keeps executing the OLD
 module. Re-mount the row and the new code takes over live: `plugin_manager`
 `set_plugin` (disable, then enable) on `include:voice` — that is the no-restart
 swap this checkout's dev loop uses, visible as the changed
-`/api/voice/config` version. The re-mount also re-initializes the row's
-in-memory config, so re-select the provider in Settings afterwards.
+`/api/voice/config` version. Provider, language and the API key survive that
+re-mount (they live in `.dsh-voice/state.json`), so nothing has to be re-entered.
 
 ## Building
 
@@ -149,7 +149,9 @@ Endpoints:
   `q()`.
 - The API key is host-only: set via `/api/voice/api-key`, never returned to
   the page (`hasKey` only), travels to the provider via the `DSHVOICE_API_KEY`
-  environment variable, never argv.
+  environment variable, never argv. It is persisted only in the host-side
+  settings file (`<workspaceRoot>/.dsh-voice/state.json`), written through
+  `umask 077` so the directory is 0700 and the file 0600.
 - The Codex access token follows the same rule: read from
   `$CODEX_HOME/auth.json`, handed to curl as `DSHVOICE_CODEX_TOKEN` (never
   argv), and never returned to the page — `/api/voice/codex-status` exposes
@@ -164,10 +166,16 @@ Endpoints:
 
 ## Environment facts that matter
 
-- Plugin data (engine binary, models, temp files) lives in the DSH process
-  launch directory (`<launch-dir>/.engine`, `/.models`, `/.tmp`) —
-  `sandboxPolicy.workspaceRoot` is the deployment default, not the session
-  workspace.
+- Plugin data (engine binary, models, temp files, settings) lives in the DSH
+  process launch directory (`<launch-dir>/.engine`, `/.models`, `/.tmp`,
+  `/.dsh-voice`) — `sandboxPolicy.workspaceRoot` is the deployment default, not
+  the session workspace. `<launch-dir>/.dsh-voice/state.json` holds the
+  provider/language/paths plus the host-only API key, so it outlives both a
+  `dsh web` restart and a plugin re-mount; delete it to reset the plugin.
+- The host half drives a POSIX shell (`uname`, `test -f`, `base64 -d`,
+  `mkdir -p`, `rm -rf`, `ffmpeg`, `sha256sum`). On Windows `ctx.shell` is the
+  PowerShell executor, so `apply()` logs one warning and registers nothing —
+  Windows hosts are unsupported until the command layer has a pwsh dialect.
 - Models already in `~/.cache/huggingface/hub/models--handy-computer--*` (e.g.
   downloaded by the Handy app) are auto-detected — no re-download needed.
 - Host requirements: `bash`, `curl`, `ffmpeg`.

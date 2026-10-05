@@ -126,6 +126,28 @@ function applyConfigPatch(config: VoiceConfig, patch: VoiceConfigPatch | null | 
   }
 }
 
+// ── persisted settings ──────────────────────────────────────────────────────
+
+/**
+ * Where the config lives between runs, relative to the plugin's data root (the
+ * deployment workspace root, next to `.engine/`, `.models/` and `.tmp/`).
+ * It holds the host-only API key, so it is always written with `umask 077`
+ * (directory 0700, file 0600) and is never part of an HTTP response.
+ */
+const STATE_DIRNAME = '.dsh-voice'
+
+/** The config exactly as it is persisted (the API key included — host-only file). */
+function configSnapshot(config: VoiceConfig): string {
+  return JSON.stringify({
+    provider: config.provider,
+    language: config.language,
+    tcpp: config.tcpp,
+    local: config.local,
+    api: { url: config.api.url, model: config.api.model, key: config.api.key },
+    codex: config.codex,
+  }, null, 2) + '\n'
+}
+
 // ── shell helpers (safe quoting, execution, file probes) ────────────────────
 
 function q(s: string): string {
@@ -191,6 +213,25 @@ async function runCmd(deps: ShellDeps, command: string, opts: { workdir?: string
     throw new Error('command failed (' + why + (result.timedOut ? ', timeout' : '') + '): ' + (stderrText || stdoutText || '').slice(0, 400))
   }
   return result
+}
+
+/**
+ * Read a host file: the fs service is the sandbox-aware reader, and `cat`
+ * through the shell is the fallback for paths outside the fs roots. `null`
+ * means unreadable or empty.
+ */
+async function readHostFile(deps: ShellDeps, fsDeps: FsDeps, path: string): Promise<string | null> {
+  try {
+    return await fsDeps.readText(await fsDeps.resolve(path))
+  } catch {
+    try {
+      const r = await runCmd(deps, 'cat ' + q(path) + ' 2>/dev/null || true', { timeoutMs: 10000 })
+      const text = String(r.stdout?.text ?? '')
+      return text.trim() ? text : null
+    } catch {
+      return null
+    }
+  }
 }
 
 async function fileSize(deps: ShellDeps, p: string): Promise<number> {
@@ -675,16 +716,7 @@ async function readCodexAuth(deps: ShellDeps, fsDeps: FsDeps, authPath: string):
   }
   // The fs service is the sandbox-aware reader; `cat` through the shell service
   // is the fallback for deployments where the path sits outside the fs roots.
-  let raw: string | null = null
-  try {
-    raw = await fsDeps.readText(await fsDeps.resolve(authPath))
-  } catch {
-    try {
-      const r = await runCmd(deps, 'cat ' + q(authPath) + ' 2>/dev/null || true', { timeoutMs: 10000 })
-      const text = String(r.stdout?.text ?? '')
-      if (text.trim()) raw = text
-    } catch { /* unreadable — reported as missing below */ }
-  }
+  const raw = await readHostFile(deps, fsDeps, authPath)
   if (raw === null) {
     return { state: 'missing', authPath, credentials: null, message: 'Codex auth file ' + authPath + ' not found — run `codex login` on this host' }
   }
@@ -831,6 +863,15 @@ export const inject = ['webServer', 'shell', 'fs']
  * @param ctx - host root context (services from `inject` are guaranteed).
  */
 export function apply(ctx: Context): void {
+  // The whole host half drives a POSIX shell (`uname`, `test -f`, `base64 -d`,
+  // `mkdir -p`, `rm -rf`, `ffmpeg`, `sha256sum`). On Windows `ctx.shell` is the
+  // PowerShell executor, so registering would answer every request with a
+  // cascade of command failures instead of one clear reason.
+  if (process.platform === 'win32') {
+    ctx.logger?.warn('dsh-voice: the host half needs a POSIX shell (bash/curl/ffmpeg) and does not run on Windows — /api/voice/* is not registered')
+    return
+  }
+
   const shell = ctx.get('shell')
   const fs = ctx.get('fs')
   const webServer = ctx.get('webServer')
@@ -859,6 +900,45 @@ export function apply(ctx: Context): void {
   const deps: ShellDeps = { shell: shell as ShellDeps['shell'] }
   const fsDeps = fs as FsDeps
 
+  const stateDir = (wsRoot ?? process.cwd()) + '/' + STATE_DIRNAME
+  const statePath = stateDir + '/state.json'
+
+  // Settings survive a `dsh web` restart and a plugin re-mount: the file is
+  // read once, before any route answers, and rewritten after every change.
+  const stateReady: Promise<void> = (async () => {
+    const raw = await readHostFile(deps, fsDeps, statePath)
+    if (raw === null) return
+    let parsed: Record<string, unknown> | null = null
+    try {
+      parsed = recordOf(JSON.parse(raw))
+    } catch {
+      parsed = null
+    }
+    if (parsed === null) {
+      ctx.logger?.warn('dsh-voice: ' + statePath + ' is not a JSON object — settings fall back to defaults')
+      return
+    }
+    applyConfigPatch(config, parsed as VoiceConfigPatch)
+    const key = recordOf(parsed.api)?.key
+    if (typeof key === 'string') config.api.key = key
+  })().catch((error) => {
+    ctx.logger?.warn('dsh-voice: could not read ' + statePath + ': ' + (error instanceof Error ? error.message : String(error)))
+  })
+
+  /** Rewrite the settings file; a failure is reported, never fatal. */
+  const saveState = async (): Promise<void> => {
+    try {
+      // umask 077 keeps the key inside unreadable to group/other; the payload
+      // travels on stdin, never in argv.
+      await runCmd(deps, 'umask 077; mkdir -p ' + q(stateDir) + ' && cat > ' + q(statePath), {
+        stdin: configSnapshot(config),
+        timeoutMs: 10000,
+      })
+    } catch (error) {
+      ctx.logger?.warn('dsh-voice: could not persist settings to ' + statePath + ': ' + (error instanceof Error ? error.message : String(error)))
+    }
+  }
+
   function tmpdir(): string {
     return (wsRoot ?? process.cwd()) + '/.tmp/voice-' + Date.now() + '-' + Math.floor(Math.random() * 1000000)
   }
@@ -868,7 +948,9 @@ export function apply(ctx: Context): void {
       () => webServer.register({
         kind: 'exact',
         path,
-        handler: (req, res) => Promise.resolve(handler(req, res)).catch((e) => {
+        // Every endpoint answers from the persisted settings, so all of them
+        // wait for the one-time read instead of racing it.
+        handler: (req, res) => Promise.resolve(stateReady).then(() => handler(req, res)).catch((e) => {
           json(res, { ok: false, error: e instanceof Error ? e.message : String(e) }, 500)
         }),
       }),
@@ -881,6 +963,7 @@ export function apply(ctx: Context): void {
     if (req.method === 'POST') {
       const body = await readBody(req)
       applyConfigPatch(config, body as VoiceConfigPatch)
+      await saveState()
     }
     json(res, { ok: true, ...publicConfigView(config) })
   })
@@ -890,6 +973,7 @@ export function apply(ctx: Context): void {
     const body = await readBody(req)
     const key = typeof body.key === 'string' ? body.key : ''
     config.api.key = key
+    await saveState()
     json(res, { ok: true, hasKey: key !== '' })
   })
 
