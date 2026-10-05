@@ -40,6 +40,24 @@ To remove:
 dsh plugin --profile web remove dsh-voice
 ```
 
+### Restart vs live reload
+
+The restart above is about the **composition**, not about code: the bundle list
+(`dsh.profile.bundles`), the profile's `node_modules` tree and the bundle's
+`cordis.patch.yml` row are read while the process boots, so installing,
+removing or re-pointing a bundle needs a fresh `dsh web`.
+
+Code changes to an already-mounted plugin are hot, but only inside the HMR
+row's watch root. This machine's `~/.dsh/profiles/web/cordis.patch.yml` sets it
+to `node_modules/dsh-voice/lib`. A `github:` install is a frozen tarball of one
+commit, so `npm run build` here writes to `<repo>/lib` and never touches the
+watched copy — it looks like the plugin "needs a restart", but nothing was ever
+delivered. Install the repo itself (`dsh plugin --profile web add file:<repo>`)
+for the live loop: after that one restart, every `npm run build` re-mounts the
+host half and `client-hmr` re-serves the browser half. Without a link, copying
+the built `lib/` into the installed package hot-swaps it too. `/api/voice/config`
+reports the mounted module's version, so the swap is visible.
+
 ## Building
 
 ```

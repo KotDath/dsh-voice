@@ -24,6 +24,7 @@
  */
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import { createRequire } from 'node:module'
 import type { Context } from '@deepseek-ai/cordis'
 // Type-only: pulls the ctx.webServer Context merge from dsh-host-webserver.
 import type {} from '@deepseek-ai/dsh-host-webserver'
@@ -42,6 +43,27 @@ export { invariant } from './invariant.ts'
 
 /** Plugin name (row id `voice` in cordis.patch.yml). */
 export const name = 'dsh-voice'
+
+/**
+ * The version of the module that is actually loaded right now, read from the
+ * package this file belongs to. It is the build marker for live reloads: when
+ * the profile installs this repo directly (a `file:` link), the Cordis HMR row
+ * watching `node_modules/dsh-voice/lib` re-mounts the row after
+ * `npm run build`, and `/api/voice/config` reports the new version without a
+ * restart. See AGENTS.md, "Restart vs live reload".
+ */
+function readOwnVersion(): string {
+  try {
+    const require = createRequire(import.meta.url)
+    const pkg = require('../package.json') as { version?: unknown }
+    return typeof pkg.version === 'string' ? pkg.version : 'unknown'
+  } catch {
+    return 'unknown'
+  }
+}
+
+/** Version of the loaded module (see {@link readOwnVersion}). */
+export const version = readOwnVersion()
 
 // ── config schema (all user-controllable strings validated here) ────────────
 
@@ -68,6 +90,7 @@ interface VoiceConfigPatch {
 
 function publicConfigView(config: VoiceConfig) {
   return {
+    version,
     provider: config.provider,
     language: config.language,
     tcpp: { ...config.tcpp },

@@ -30,6 +30,7 @@ async function main() {
   const host = await import(resolve(ROOT, 'lib/index.js'))
   eq(typeof host.apply, 'function', 'host half exports apply()')
   eq(host.name, 'dsh-voice', 'host half exports name "dsh-voice"')
+  eq(host.version, JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf8')).version, 'host half exports the package version (live-reload build marker)')
   ok(Array.isArray(host.CATALOG) && host.CATALOG.length >= 60, `catalog has ${host.CATALOG.length} models (>= 60)`)
 
   // ---------- catalog integrity (models.json = single source of truth) ----------

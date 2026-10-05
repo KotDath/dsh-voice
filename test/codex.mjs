@@ -157,6 +157,7 @@ async function main() {
   // ---------- provider enum accepts codex, rejects anything else ----------
   let r = await call(routes, '/api/voice/config', { method: 'POST', body: { provider: 'codex' } })
   eq(r.body.provider, 'codex', 'config accepts provider "codex"')
+  eq(r.body.version, JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf8')).version, 'config reports the loaded module version')
   r = await call(routes, '/api/voice/config', { method: 'POST', body: { provider: 'codex; rm -rf /' } })
   eq(r.body.provider, 'codex', 'config rejects an unknown provider string')
   r = await call(routes, '/api/voice/config', {

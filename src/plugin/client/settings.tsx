@@ -9,6 +9,7 @@ import { fmtSize } from './state.ts'
 import styles from './voice.module.css'
 
 interface ConfigView {
+  version?: string
   provider: 'tcpp' | 'local' | 'api' | 'codex'
   language: string
   tcpp: { binary: string; modelsDir: string; modelId: string; engineUrl: string }
@@ -300,5 +301,9 @@ export function VoiceSettings(): React.JSX.Element {
       React.createElement('button', { type: 'button', className: styles.voiceSave, onClick: save }, 'Save'),
       saved ? React.createElement('span', { className: styles.voiceSaved }, saved) : null,
     ),
+    // The version of the host half that is actually mounted right now: the
+    // answer to "did my rebuild reach the live process?" (see AGENTS.md,
+    // "Restart vs live reload").
+    React.createElement('div', { className: styles.voiceHint }, 'dsh-voice v' + (cfg.version ?? '?')),
   )
 }

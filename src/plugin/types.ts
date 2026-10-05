@@ -2,6 +2,8 @@
 
 /** Public config view: the API key is replaced with hasKey only. */
 export interface VoiceConfigView {
+  /** Version of the module that is loaded right now (live-reload build marker). */
+  version: string
   provider: 'tcpp' | 'local' | 'api' | 'codex'
   language: string
   tcpp: { binary: string; modelsDir: string; modelId: string; engineUrl: string }
