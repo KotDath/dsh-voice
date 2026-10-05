@@ -29,7 +29,9 @@ dsh plugin --profile web add github:KotDath/dsh-voice
 dsh plugin --profile web add file:/path/to/dsh-voice
 ```
 
-Then **restart the web process** (`dsh web`). The patch layer
+When the profile runs the `hmr` row the install applies in the running process
+(see "Restart vs live reload" below); a profile without that row picks the new
+composition up only at the next `dsh web`. The patch layer
 (`cordis.patch.yml`) inserts one row `id: voice, name: dsh-voice`; the host
 Loader mounts `lib/index.js` (registers `/api/voice/*` HTTP endpoints) and the
 `dsh.client` declaration serves `lib/client.js` into the browser boot graph.
@@ -42,21 +44,37 @@ dsh plugin --profile web remove dsh-voice
 
 ### Restart vs live reload
 
-The restart above is about the **composition**, not about code: the bundle list
-(`dsh.profile.bundles`), the profile's `node_modules` tree and the bundle's
-`cordis.patch.yml` row are read while the process boots, so installing,
-removing or re-pointing a bundle needs a fresh `dsh web`.
+The "restart" in the install snippet is not a property of plugins — it is a
+property of the **profile**. `dsh-base` ships the `hmr` row *disabled*, and only
+a profile that enables it gets live composition reloads. This machine's
+`~/.dsh/profiles/web/cordis.patch.yml` enables it as its first patch entry, so
+the running `dsh web` watches
 
-Code changes to an already-mounted plugin are hot, but only inside the HMR
-row's watch root. This machine's `~/.dsh/profiles/web/cordis.patch.yml` sets it
-to `node_modules/dsh-voice/lib`. A `github:` install is a frozen tarball of one
-commit, so `npm run build` here writes to `<repo>/lib` and never touches the
-watched copy — it looks like the plugin "needs a restart", but nothing was ever
-delivered. Install the repo itself (`dsh plugin --profile web add file:<repo>`)
-for the live loop: after that one restart, every `npm run build` re-mounts the
-host half and `client-hmr` re-serves the browser half. Without a link, copying
-the built `lib/` into the installed package hot-swaps it too. `/api/voice/config`
-reports the mounted module's version, so the swap is visible.
+- the profile patch layer (`<profile>/cordis.patch.yml`, "hot-reloaded on
+  long-lived surfaces"),
+- the user patch layer in the DSH home (`~/.dsh/cordis.patch.yml`),
+- the profile manifest (`<profile>/package.json` — i.e. the bundle list),
+
+and reconciles any change into the live Loader (`dsh-hmr` →
+`reconcileProfilePatches`). That is the whole mechanism behind "install without
+a restart": both `dsh plugin --profile web add …` and the in-process plugin
+manager (`plugin_manager` / the GUI) rewrite exactly those files, so the new row
+mounts in the running process — and because the change also lands on disk, it is
+still there after the next start. `PluginManager` reports the outcome as
+`application: 'applied'` while `ctx.hmr` exists, and `'restart-required'` only
+on a profile that never enabled that row. Enabling/disabling the `hmr` row
+itself is the one change that still needs a restart.
+
+What is genuinely *not* live is code that never reaches the mounted path. A
+`github:` install is a frozen tarball of one commit, so `npm run build` here
+writes to `<repo>/lib` and never touches the copy the Loader mounts
+(`<profile>/node_modules/dsh-voice/lib`, the HMR module root): it only looks
+like the plugin "needs a restart", because nothing was ever delivered. Install
+the repo itself (`dsh plugin --profile web add file:<repo>`, or the plugin
+manager with the absolute path) and `node_modules/dsh-voice` links to this
+checkout — from then on every `npm run build` re-mounts the host half live and
+`client-hmr` re-serves the browser half. `/api/voice/config` reports the mounted
+module's version (Settings shows `dsh-voice vX.Y.Z`), so the swap is visible.
 
 ## Building
 
@@ -159,8 +177,8 @@ Endpoints:
 
 | Symptom | Cause / fix |
 |---|---|
-| `/api/voice/*` 404 on a live server | Web process started before install: restart `dsh web`. |
-| Mic button missing after install | Check `dsh plugin --profile web` reconcile added `dsh-voice` to `dsh.profile.bundles`; restart. |
+| `/api/voice/*` 404 on a live server | The row is not mounted in the running process. With the `hmr` row enabled (this profile) an install/reinstall applies live — check the manager's `application` field; without that row the composition is boot-time only, so restart `dsh web`. |
+| Mic button missing after install | Check `dsh plugin --profile web` reconcile added `dsh-voice` to `dsh.profile.bundles` and that the client bundle is served; with `hmr` enabled no restart is needed, otherwise restart. |
 | Engine download → 404 | No release yet: push a `v*` tag (CI builds engines). Or point **Advanced → Engine path** at an existing `transcribe-cli`. |
 | Model download error | Verify the model id in `models.json`/catalog; HF `resolve/main/<file>` must return 200. Gated models may need a Hugging Face token. |
 | Long dictation loses text | Fixed by 20 s chunking. Models have ~25 s windows; do not remove the chunking branch in `transcribeWithTcpp`. Not applicable to `codex` (single request up to 5 min). |
