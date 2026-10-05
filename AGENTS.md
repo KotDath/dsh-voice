@@ -45,10 +45,10 @@ dsh plugin --profile web remove dsh-voice
 ### Restart vs live reload
 
 The "restart" in the install snippet is not a property of plugins — it is a
-property of the **profile**. `dsh-base` ships the `hmr` row *disabled*, and only
-a profile that enables it gets live composition reloads. This machine's
-`~/.dsh/profiles/web/cordis.patch.yml` enables it as its first patch entry, so
-the running `dsh web` watches
+property of the **profile**: live composition reloads need the `hmr` row
+mounted in the running process (`dsh-base` enables it wherever a profile
+context exists, and this machine's profile pins it explicitly with a module
+watch root). With that row live, the running `dsh web` watches
 
 - the profile patch layer (`<profile>/cordis.patch.yml`, "hot-reloaded on
   long-lived surfaces"),
@@ -75,6 +75,23 @@ manager with the absolute path) and `node_modules/dsh-voice` links to this
 checkout — from then on every `npm run build` re-mounts the host half live and
 `client-hmr` re-serves the browser half. `/api/voice/config` reports the mounted
 module's version (Settings shows `dsh-voice vX.Y.Z`), so the swap is visible.
+
+Two gaps bite when *updating* an install that already exists:
+
+- `plugin_manager install_bundle` with the same `github:` spec refreshes the
+  package on disk and then answers `application: 'failed'` with
+  `ambiguous-install`: the dependency spec did not change, so the manager
+  cannot tell which bundle to activate and never runs its reconcile step.
+- the `dsh-hmr` module watcher watches the module root, but pnpm replaces the
+  package directory wholesale (remove + extract), which can leave that watch
+  attached to the removed inode.
+
+Either way the files on disk are current while the row keeps executing the OLD
+module. Re-mount the row and the new code takes over live: `plugin_manager`
+`set_plugin` (disable, then enable) on `include:voice` — that is the no-restart
+swap this checkout's dev loop uses, visible as the changed
+`/api/voice/config` version. The re-mount also re-initializes the row's
+in-memory config, so re-select the provider in Settings afterwards.
 
 ## Building
 

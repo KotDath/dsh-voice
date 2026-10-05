@@ -41,9 +41,17 @@ npm install && npm run build
 dsh plugin --profile web add file:/path/to/dsh-voice
 ```
 
-Then **restart the web process** (`dsh web`) — the new plugin row is picked up
-at boot. After that the plugin is active in **every session** of the profile:
-no per-session `cordis_define`, no source edits.
+The install lands in the **running** process when the profile mounts the `hmr`
+row — no restart. A profile without that row reads its composition at boot, so
+restart the web process (`dsh web`) there. Either way the plugin is then active
+in **every session** of the profile: no per-session `cordis_define`, no source
+edits.
+
+Updating an install that already exists is the one case that still needs a
+nudge: pnpm replaces the package directory, so the mounted row can keep running
+the previous module until it is re-mounted — toggling the plugin in the plugin
+manager re-mounts it live (and `/api/voice/config` reports the version that is
+actually loaded).
 
 The package declares `dsh.bundle.patch` (→ `cordis.patch.yml`, one row
 `id: voice, name: dsh-voice`) and `dsh.client` (→ the browser half
