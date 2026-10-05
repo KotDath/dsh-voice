@@ -24,7 +24,7 @@
  */
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { createRequire } from 'node:module'
+import { readFileSync } from 'node:fs'
 import type { Context } from '@deepseek-ai/cordis'
 // Type-only: pulls the ctx.webServer Context merge from dsh-host-webserver.
 import type {} from '@deepseek-ai/dsh-host-webserver'
@@ -51,11 +51,14 @@ export const name = 'dsh-voice'
  * watching `node_modules/dsh-voice/lib` re-mounts the row after
  * `npm run build`, and `/api/voice/config` reports the new version without a
  * restart. See AGENTS.md, "Restart vs live reload".
+ *
+ * The file is read directly rather than through `require('../package.json')`:
+ * that CJS cache is process-wide and outlives a live re-mount, so the marker
+ * kept reporting the version the previous module instance had cached.
  */
 function readOwnVersion(): string {
   try {
-    const require = createRequire(import.meta.url)
-    const pkg = require('../package.json') as { version?: unknown }
+    const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version?: unknown }
     return typeof pkg.version === 'string' ? pkg.version : 'unknown'
   } catch {
     return 'unknown'

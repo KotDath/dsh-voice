@@ -92,6 +92,9 @@ module. Re-mount the row and the new code takes over live: `plugin_manager`
 swap this checkout's dev loop uses, visible as the changed
 `/api/voice/config` version. Provider, language and the API key survive that
 re-mount (they live in `.dsh-voice/state.json`), so nothing has to be re-entered.
+The marker reads `package.json` from disk each time the module is evaluated, not
+through `require`, whose process-wide cache would keep reporting the previous
+build after a live re-mount.
 
 ## Building
 
