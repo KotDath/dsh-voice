@@ -121,8 +121,12 @@
 }
 .voiceSave {
   align-self: flex-start;
+  /* `brand-primary` is near-black in the light theme and near-white in the
+     dark one, so the label has to come from the inverted surface token — a
+     hardcoded #fff left the dark theme with white-on-white (an empty-looking
+     button). Same pairing as .voicePillSend below. */
   background: var(--dsw-alias-brand-primary);
-  color: #fff;
+  color: var(--dsw-alias-bg-base);
   border: none;
   border-radius: 6px;
   padding: 7px 14px;

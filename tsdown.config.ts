@@ -108,16 +108,22 @@ export default [
         // builds, so a rebuild never dirties the committed bundle by itself.
         const entries = Object.entries(cssExports ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
         for (const [local, exp] of entries) classMap[local] = exp.name
-        // One <style data-plugin> per module file; idempotent under re-evaluation.
+        // One <style data-plugin> per module file; a re-evaluated module (live
+        // reload, plugin re-mount) replaces stale rules instead of keeping them.
         return [
           `const css = ${JSON.stringify(code.toString())};`,
           `const tagId = ${JSON.stringify(`${PLUGIN_ID}/${basename(fileId)}`)};`,
-          'if (typeof document !== \'undefined\' && document.querySelector(\'style[data-plugin-css=\' + JSON.stringify(tagId) + \']\') === null) {',
-          '  const tag = document.createElement(\'style\');',
-          `  tag.dataset.plugin = ${JSON.stringify(PLUGIN_ID)};`,
-          '  tag.dataset.pluginCss = tagId;',
-          '  tag.textContent = css;',
-          '  document.head.appendChild(tag);',
+          'if (typeof document !== \'undefined\') {',
+          '  const existing = document.querySelector(\'style[data-plugin-css=\' + JSON.stringify(tagId) + \']\');',
+          '  if (existing === null) {',
+          '    const tag = document.createElement(\'style\');',
+          `    tag.dataset.plugin = ${JSON.stringify(PLUGIN_ID)};`,
+          '    tag.dataset.pluginCss = tagId;',
+          '    tag.textContent = css;',
+          '    document.head.appendChild(tag);',
+          '  } else if (existing.textContent !== css) {',
+          '    existing.textContent = css;',
+          '  }',
           '}',
           `export default ${JSON.stringify(classMap)};`,
         ].join('\n')

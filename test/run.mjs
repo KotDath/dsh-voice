@@ -57,6 +57,17 @@ async function main() {
   ok(clientSrc.includes('settings.section'), 'client bundle registers settings.section slot')
   ok(clientSrc.includes('/api/voice/codex-status'), 'client bundle talks to the codex-status endpoint')
   ok(clientSrc.includes('Codex — ChatGPT subscription'), 'client bundle offers the Codex provider')
+  ok(clientSrc.includes('existing.textContent !== css'), 'client bundle replaces stale plugin CSS on re-evaluation')
+
+  // ---------- theme safety ----------
+  // Every color must come from a light/dark-aware theme token: a hardcoded one
+  // (the Save button carried `color: #fff`) disappears in one of the themes —
+  // `--dsw-alias-brand-primary` is near-black in light and near-white in dark.
+  const cssSrc = readFileSync(resolve(ROOT, 'src/plugin/client/voice.module.css'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+  const hardcoded = cssSrc.match(/#[0-9a-fA-F]{3,8}\b/g)
+  ok(hardcoded === null, `plugin CSS uses theme tokens only (found ${JSON.stringify(hardcoded)})`)
+  ok(/\.voiceSave\b[^}]*color:\s*var\(--dsw-alias-bg-base\)/.test(cssSrc), 'the Save label pairs brand-primary with the inverted surface token')
 
   // ---------- the bundle actually loads and renders in the loader contract ----------
   // Feed it the shell's window.__ModuleLoader__ and a require that resolves the
