@@ -67,7 +67,16 @@ async function main() {
     .replace(/\/\*[\s\S]*?\*\//g, '')
   const hardcoded = cssSrc.match(/#[0-9a-fA-F]{3,8}\b/g)
   ok(hardcoded === null, `plugin CSS uses theme tokens only (found ${JSON.stringify(hardcoded)})`)
-  ok(/\.voiceSave\b[^}]*color:\s*var\(--dsw-alias-bg-base\)/.test(cssSrc), 'the Save label pairs brand-primary with the inverted surface token')
+
+  // ---------- design-system vocabulary ----------
+  // The primitives themselves are not importable by a third-party bundle, so
+  // the stylesheet mirrors their rules; these assertions pin the parts that are
+  // easy to drift back out of the system.
+  ok(/\.voiceSave\b[^}]*background:\s*var\(--dsw-alias-label-primary\)/.test(cssSrc), 'Save uses the system .save fill (label-primary)')
+  ok(/\.voiceSave\b[^}]*color:\s*var\(--dsw-alias-bg-layer-3\)/.test(cssSrc), 'Save label uses the system .save foreground (bg-layer-3)')
+  ok(cssSrc.includes('var(--dsw-radius-md)') && cssSrc.includes('var(--dsw-radius-sm)'), 'controls use the theme radius scale, not literals')
+  ok(cssSrc.includes('var(--dsw-alias-state-business-primary)'), 'focus rings use the business accent token')
+  ok(cssSrc.includes('var(--dsw-alias-interactive-bg-hover)'), 'hover states use the system interactive fill')
 
   // ---------- the bundle actually loads and renders in the loader contract ----------
   // Feed it the shell's window.__ModuleLoader__ and a require that resolves the

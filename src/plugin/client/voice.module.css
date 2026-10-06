@@ -1,3 +1,24 @@
+/* Design-system alignment.
+ *
+ * The harness exposes its design TOKENS and its slots to a third-party bundle;
+ * its components (Button, SettingsForm, ConfigField, Input) live in
+ * `@deepseek-ai/dsh-client-ui-primitives`, which carries no `dsh.client`
+ * manifest and therefore is not part of the shell's module table — a plugin
+ * cannot import them. So these rules mirror the primitives' own vocabulary and
+ * metrics (SettingsForm.module.css, settings-form/fields.module.css,
+ * Button.module.css):
+ *   radius      --dsw-radius-sm (8px) / --dsw-radius-md (12px) from :root
+ *   strokes     l2 dividers, l3 outlined controls, l4 inputs
+ *   surfaces    bg-layer-1..4, bg-overlay + --dsw-shadow-lv3 for floats
+ *   states      --dsw-alias-interactive-bg-hover / -active, disabled 0.4
+ *   primary     button-primary-fill + label-primary-foreground
+ *   save        label-primary fill + bg-layer-3 label (the system's .save)
+ *   focus       a 2px ring in --dsw-alias-state-business-primary, offset 1px
+ * No literal colors: every value comes from a light/dark-aware token.
+ */
+
+/* ── composer: mic button and recording pill ─────────────────────────────── */
+
 .voiceMic {
   display: flex;
   align-items: center;
@@ -5,30 +26,43 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  border: 1px solid var(--dsw-alias-border-l1);
+  border: 0.5px solid var(--dsw-alias-border-l3);
   background: transparent;
   color: var(--dsw-alias-label-secondary);
   cursor: pointer;
   padding: 0;
   box-sizing: border-box;
 }
-.voiceMic:hover {
+.voiceMic:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+  border-color: var(--dsw-alias-border-l4);
   color: var(--dsw-alias-label-primary);
-  border-color: var(--dsw-alias-border-l2);
 }
+.voiceMic:active:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-active);
+}
+.voiceMic:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 1px;
+}
+.voiceMic:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .voicePill {
   display: flex;
   align-items: center;
   gap: 10px;
   height: 52px;
   border-radius: 26px;
-  background: var(--dsw-alias-bg-layer-1);
-  border: 1px solid var(--dsw-alias-border-l1);
+  background: var(--dsw-alias-bg-overlay);
+  border: 0.5px solid var(--dsw-alias-border-l2);
   padding: 0 14px;
   width: 100%;
   max-width: 720px;
   margin: 0 auto;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--dsw-shadow-lv3);
   box-sizing: border-box;
 }
 .voicePillBtn {
@@ -38,35 +72,47 @@
   width: 34px;
   height: 34px;
   border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
   cursor: pointer;
   padding: 0;
   flex: none;
   box-sizing: border-box;
 }
+.voicePillBtn:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.voicePillBtn:active:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-active);
+}
+.voicePillBtn:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 1px;
+}
+.voicePillBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 .voicePillCancel {
-  border: 1px solid var(--dsw-alias-border-l2);
+  border: 0.5px solid var(--dsw-alias-border-l3);
   background: transparent;
   color: var(--dsw-alias-label-primary);
 }
-.voicePillCancel:hover {
-  background: var(--dsw-alias-bg-layer-2);
-}
 .voicePillStop {
-  border: none;
-  background: var(--dsw-alias-bg-layer-2);
+  background: var(--dsw-alias-bg-layer-3);
   color: var(--dsw-alias-label-primary);
 }
-.voicePillStop:hover {
-  filter: brightness(1.15);
-}
 .voicePillSend {
-  border: none;
-  background: var(--dsw-alias-label-primary);
-  color: var(--dsw-alias-bg-base);
+  background: var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-label-primary-foreground);
 }
-.voicePillSend:hover {
-  opacity: 0.9;
+.voicePillSend:hover:not(:disabled) {
+  background: var(--dsw-alias-button-primary-hover);
 }
+
+/* ── recording status + waveform ─────────────────────────────────────────── */
+
 .voiceWave {
   flex: 1;
   height: 40px;
@@ -79,6 +125,7 @@
   gap: 10px;
   color: var(--dsw-alias-label-secondary);
   font-size: 13px;
+  line-height: 1.5;
 }
 .voiceStatusErr {
   color: var(--dsw-alias-state-error-primary);
@@ -96,49 +143,89 @@
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+/* ── settings section ────────────────────────────────────────────────────── */
+
 .voiceSettings {
   display: flex;
   flex-direction: column;
   gap: 12px;
   max-width: 560px;
-  padding: 8px 0;
+  padding: 4px 0;
 }
 .voiceField {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 12px;
-  color: var(--dsw-alias-label-secondary);
+  gap: 6px;
+  padding: 8px 0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--dsw-alias-label-primary);
 }
 .voiceSettings input,
 .voiceSettings select {
-  background: var(--dsw-alias-bg-layer-1);
-  border: 1px solid var(--dsw-alias-border-l1);
+  height: 34px;
+  padding: 0 12px;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: var(--dsw-radius-md);
+  background: var(--dsw-alias-bg-layer-3);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 400;
   color: var(--dsw-alias-label-primary);
-  border-radius: 6px;
-  padding: 6px 8px;
-  font-size: 13px;
 }
+.voiceSettings input:focus-visible,
+.voiceSettings select:focus-visible {
+  outline: none;
+  border-color: var(--dsw-alias-state-business-primary);
+}
+.voiceSettings input:disabled,
+.voiceSettings select:disabled {
+  color: var(--dsw-alias-label-tertiary);
+  cursor: default;
+}
+/* The system's .save: label-primary fill, bg-layer-3 label. */
 .voiceSave {
+  appearance: none;
   align-self: flex-start;
-  /* `brand-primary` is near-black in the light theme and near-white in the
-     dark one, so the label has to come from the inverted surface token — a
-     hardcoded #fff left the dark theme with white-on-white (an empty-looking
-     button). Same pairing as .voicePillSend below. */
-  background: var(--dsw-alias-brand-primary);
-  color: var(--dsw-alias-bg-base);
-  border: none;
-  border-radius: 6px;
-  padding: 7px 14px;
+  border: 1px solid transparent;
+  border-radius: var(--dsw-radius-md);
+  padding: 5px 14px;
+  font: inherit;
   font-size: 13px;
+  line-height: 1.5;
   cursor: pointer;
+  background: var(--dsw-alias-label-primary);
+  color: var(--dsw-alias-bg-layer-3);
+}
+.voiceSave:hover:not(:disabled) {
+  background: var(--dsw-alias-label-secondary);
+}
+.voiceSave:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.voiceSave:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 1px;
 }
 .voiceHint {
-  font-size: 11px;
-  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--dsw-alias-label-tertiary);
+}
+.voiceHintErr {
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--dsw-alias-state-error-primary);
 }
 .voiceSaved {
   font-size: 12px;
+  line-height: 1.5;
   color: var(--dsw-alias-state-success-primary);
 }
 .voiceRow {
@@ -149,34 +236,55 @@
 .voiceRow select {
   flex: 1;
 }
+/* Small secondary action: the system's outlined/ghost control in `sm` size. */
 .voiceAction {
-  background: var(--dsw-alias-bg-layer-1);
-  border: 1px solid var(--dsw-alias-border-l1);
-  color: var(--dsw-alias-label-primary);
-  border-radius: 6px;
-  padding: 6px 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 10px;
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: var(--dsw-radius-sm);
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
   font-size: 12px;
+  line-height: 18px;
+  font-weight: 400;
   cursor: pointer;
   white-space: nowrap;
 }
+.voiceAction:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+.voiceAction:active:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-active);
+}
+.voiceAction:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 1px;
+}
 .voiceAction:disabled {
-  opacity: 0.5;
-  cursor: default;
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 .voiceBar {
   height: 6px;
-  border-radius: 3px;
+  border-radius: var(--dsw-radius-sm);
   background: var(--dsw-alias-bg-layer-2);
   overflow: hidden;
 }
 .voiceBar > div {
   height: 100%;
-  background: var(--dsw-alias-brand-primary);
+  background: var(--dsw-alias-state-business-primary);
   transition: width 0.4s;
 }
 .voiceDlInfo {
-  font-size: 11px;
-  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--dsw-alias-label-tertiary);
 }
 .voiceAdvanced {
   display: flex;
@@ -188,10 +296,6 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-}
-/* Same metrics as .voiceHint, error tone. Kept as its own class because
-   .voiceHint is declared later in this file and would win on equal specificity. */
-.voiceHintErr {
-  font-size: 11px;
-  color: var(--dsw-alias-state-error-primary);
+  padding-left: 12px;
+  border-left: 0.5px solid var(--dsw-alias-border-l2);
 }
