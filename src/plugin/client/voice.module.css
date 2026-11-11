@@ -117,6 +117,13 @@
 /* Codex-style: the model select steps aside while dictating, so the strip owns
  * the free space of the row it already lives in. Nothing changes height, so the
  * stop button never moves away from under the microphone. */
+/* The composer's tool cluster sizes to its content, so a flex-basis-0 strip
+ * inside it collapses to zero width. Let the cluster grow while recording. */
+html[data-dsh-voice-recording] div:has(> [data-slot="conversation.input.left"]) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 /* Slot anchors carry an inline `display: contents`, hence the important. */
 html[data-dsh-voice-recording] [data-slot="conversation.input.model"],
 html[data-dsh-voice-recording] [data-slot="conversation.input.permission"],

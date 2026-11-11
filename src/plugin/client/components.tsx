@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { getVoiceState, setVoiceState, subscribeVoice, MAX_RECORDING_SECS } from './state.ts'
 import { startRecording, cancelRecording, stopWith } from './recorder.ts'
-import { getHotkeyLabel, subscribeHotkeyConfig } from './hotkey.ts'
+import { getHotkeyConfig, getHotkeyLabel, subscribeHotkeyConfig } from './hotkey.ts'
 import { drawWaveform } from './waveform.ts'
 import { MicIcon, XIcon, StopIcon, WarnIcon, SpinnerIcon } from './icons.tsx'
 import styles from './voice.module.css'
@@ -70,11 +70,15 @@ export function MicButton(props: VoiceSlotProps): React.JSX.Element | null {
     }, React.createElement(SpinnerIcon))
   }
   if (v.phase === 'recording') {
+    // Same choice as the shortcut's second press: send by default, insert when
+    // Settings → Voice → Second press says so. The composer's own send button
+    // stays disabled while the draft is empty, so this one carries the action.
+    const finish = getHotkeyConfig().action
     return React.createElement('button', {
       type: 'button',
       className: styles.voiceMic,
-      title: 'Stop and insert text',
-      onClick: () => stopWith('insert'),
+      title: finish === 'send' ? 'Stop and send' : 'Stop and insert text',
+      onClick: () => stopWith(finish),
     }, React.createElement(StopIcon))
   }
   return React.createElement('button', {

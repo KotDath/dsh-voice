@@ -182,9 +182,13 @@ just a centered "Transcribing" label) — a full
 down out from under the microphone. The model select is hidden with
 `html[data-dsh-voice-recording] [data-slot="conversation.input.model"]`
 (`VoiceRow` sets the attribute), and `VoiceRow` also owns the analyser sampling
-and the `MAX_RECORDING_SECS` auto-stop that used to live in the pill. Only the
-hotkey keeps the one-press "insert and send" path; from the row it is `⏹` then
-the composer's `↑`.
+and the `MAX_RECORDING_SECS` auto-stop that used to live in the pill. `⏹` runs
+the same `hotkey.action` as the shortcut's second press (send by default), so a
+recording can be sent with one click without waiting for the composer's own
+send button to leave its empty-draft disabled state. Two layout traps: a
+`flex-basis: auto` strip lets the canvas' intrinsic width inflate the row (use
+`flex-basis: 0` plus a width-synced canvas), and the tool cluster sizes to its
+content, so it needs the `:has()` rule to grow while recording.
 
 **Question cards take precedence.** An `ask_user_question` card is registered
 into the `conversation.composer` chain, so it replaces the whole composer stack
