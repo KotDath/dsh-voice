@@ -118,7 +118,7 @@ src/plugin/invariant.ts
 src/plugin/generated-catalog.ts — generated from models.json (do not edit)
 src/plugin/client/index.ts     — browser half: apply(ctx), slot registrations
 src/plugin/client/{state,recorder,waveform,components,settings,hotkey,
-                       questionTarget,questionOverlay}.ts(x)
+                       questionTarget,questionOverlay,composer}.ts(x)
 src/plugin/client/voice.module.css
 scripts/gen-catalog.mjs        — catalog generator
 tsdown.config.ts               — node ESM + browser CJS-closure bundle
@@ -168,6 +168,21 @@ Guards, in order: `repeat`, IME (`isComposing`/`keyCode 229`), suspended
 a readline terminal), a visible modal/dialog, missing composer actions, and
 `processing`. Matching uses the physical `event.code`, so a Russian layout needs
 no second binding.
+
+**The composer takeover.** While a recording is active the resident composer is
+replaced by `composer.tsx`, registered into the `conversation.composer` chain:
+the draft stays readable on top, the tool row becomes cancel / waveform / stop /
+send. The entry is registered and disposed with the phase (`starting`,
+`recording`, `processing`, `error` versus everything else) rather than driven by
+its selector: chain selectors must be pure and the chain re-elects only when the
+slot version changes, so `select` is a constant and the registration churn is
+the trigger. The seat is declared with `overlay: true`, so the fallback InputBar
+stays mounted but hidden while the takeover is elected — that keeps
+`inputActions` alive and makes `send` work mid-takeover (the takeover re-installs
+the store bridge anyway). The dock pill is deliberately kept: on a brand-new
+session (`fallbackOnly`), or if the registration throws, it is the only
+recording UI. `lib/client.js` must stay free of hardcoded colors — the CSS token
+test enforces it.
 
 **Question cards take precedence.** An `ask_user_question` card is registered
 into the `conversation.composer` chain, so it replaces the whole composer stack

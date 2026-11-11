@@ -299,3 +299,142 @@
   padding-left: 12px;
   border-left: 0.5px solid var(--dsw-alias-border-l2);
 }
+
+/* ── Composer takeover while recording ─────────────────────────────────────
+ * Replaces the resident composer card: the draft text on top, the tool row
+ * turned into the voice controls (cancel / waveform / stop / send), the way
+ * Codex presents dictation. Widths and tokens mirror the real composer. */
+
+.voiceComposerFrame {
+  padding: 6px calc(var(--dsh-composer-side-clearance, 16px) + 16px) 10px;
+  display: flex;
+  justify-content: center;
+}
+
+.voiceComposerCard {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--dsh-composer-card-max-width, 920px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 10px 8px;
+  border-radius: var(--dsw-radius-panel);
+  background: var(--dsw-specific-input-major);
+  box-shadow: var(--dsw-elevation-soft);
+  color: var(--dsw-alias-label-primary);
+  font-size: var(--dsh-content-font-size, 14px);
+  line-height: calc(24px + var(--dsh-content-font-delta, 0px));
+}
+
+.voiceComposerCard,
+.voiceComposerCard * {
+  box-sizing: border-box;
+}
+
+.voiceComposerDraft {
+  max-height: var(--dsh-composer-text-max-height, 336px);
+  overflow-y: auto;
+  padding: 4px 8px 0 14px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  color: var(--dsw-alias-label-primary);
+}
+
+.voiceComposerHint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 0 14px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.voiceComposerErr {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  color: var(--dsw-alias-state-error-primary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.voiceComposerRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 4px 0;
+  min-width: 0;
+}
+
+.voiceComposerBtn {
+  appearance: none;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+  padding: 0;
+}
+
+.voiceComposerBtn:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.voiceComposerBtn:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 1px;
+}
+
+.voiceComposerBtnGhost {
+  flex: none;
+  width: 30px;
+  height: 30px;
+}
+
+.voiceComposerSend {
+  appearance: none;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 999px;
+  background: var(--dsw-alias-button-info-fill);
+  color: var(--dsw-alias-label-primary-foreground);
+  cursor: pointer;
+  padding: 0;
+}
+
+.voiceComposerSend:hover {
+  background: var(--dsw-alias-button-info-hover);
+}
+
+.voiceComposerWaveSlot {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.voiceComposerWave {
+  width: 100%;
+  height: 24px;
+  display: block;
+}
+
+.voiceComposerBusy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 13px;
+}

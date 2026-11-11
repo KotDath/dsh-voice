@@ -18,8 +18,11 @@ import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { MicButton, RecordPill, type VoiceSlotProps } from './components.tsx'
 import { VoiceSettings } from './settings.tsx'
 import { installHotkeyLayer, loadHotkeyConfig } from './hotkey.ts'
+import { VoiceComposer, type VoiceComposerProps } from './composer.tsx'
+import { getVoiceState, subscribeVoice } from './state.ts'
 
 export { MicButton, RecordPill } from './components.tsx'
+export { VoiceComposer } from './composer.tsx'
 export { VoiceSettings } from './settings.tsx'
 export { startRecording, cancelRecording, stopWith } from './recorder.ts'
 export { getVoiceState, subscribeVoice } from './state.ts'
@@ -64,6 +67,48 @@ export function apply(ctx: ClientContext): void {
     order: 25,
     label: () => 'Voice',
   }, () => React.createElement(VoiceSettings)))
+
+  // Composer takeover: while a recording is active the resident composer card is
+  // replaced by the voice card (draft on top, ✕ / waveform / ⏹ / ↑ below), the
+  // way Codex presents dictation. The chain re-elects on a slot version change,
+  // so the entry is registered and disposed with the voice phase — the selector
+  // itself stays a pure constant.
+  let composerReady = false
+  let disposeComposer: (() => void) | null = null
+  const syncComposer = (): void => {
+    const phase = getVoiceState().phase
+    const wanted = composerReady
+      && (phase === 'starting' || phase === 'recording' || phase === 'processing' || phase === 'error')
+    if (wanted && disposeComposer === null) {
+      try {
+        disposeComposer = slots.register({
+        name: 'conversation.composer',
+        select: () => 'voice' as const,
+        }, (props) => React.createElement(VoiceComposer, props as unknown as VoiceComposerProps))
+      } catch {
+        // The takeover is an enhancement: without it the dock pill still shows.
+        disposeComposer = null
+      }
+    } else if (!wanted && disposeComposer !== null) {
+      disposeComposer()
+      disposeComposer = null
+    }
+  }
+  ctx.effect(() => slots.inject('conversation.composer', () => {
+    composerReady = true
+    syncComposer()
+    return () => {
+      composerReady = false
+      if (disposeComposer !== null) { disposeComposer(); disposeComposer = null }
+    }
+  }), 'dsh-voice: composer takeover seat')
+  ctx.effect(() => {
+    const off = subscribeVoice(syncComposer)
+    return () => {
+      off()
+      if (disposeComposer !== null) { disposeComposer(); disposeComposer = null }
+    }
+  }, 'dsh-voice: composer takeover sync')
 
   // Keyboard activation (Ctrl+E by default): the first press starts a
   // recording, the second one finishes it (send). The layer lives on window in
