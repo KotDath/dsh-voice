@@ -22,15 +22,36 @@ export interface VoiceTarget {
   insert(text: string): void
 }
 
+/**
+ * The composer editor's insertion point, captured when a recording starts:
+ * the Harness hands it out revision-guarded, so a transcript can be spliced in
+ * later without overwriting edits made in the meantime.
+ */
+export interface InsertSpan {
+  readonly start: number
+  readonly end: number
+  readonly draftRev: number
+}
+
+/** The composer action face this plugin uses (a subset of the Harness one). */
+export interface ComposerActions {
+  setDraft(text: string): void
+  submit?(): void
+  captureInsertion?(): InsertSpan
+  insertText?(text: string, span: InsertSpan): boolean
+}
+
 export interface VoiceState {
   phase: VoicePhase
   error: string
   rec: VoiceRec | null
   levels: number[]
-  inputActions: { setDraft(text: string): void; submit?(): void } | null
+  inputActions: ComposerActions | null
   input: { draft?: string } | null
   /** Explicit insertion target captured when a recording starts; null = composer. */
   target: VoiceTarget | null
+  /** Caret captured when a recording starts (composer drafts only). */
+  span: InsertSpan | null
   waveColor?: string
 }
 
@@ -44,6 +65,7 @@ const state: VoiceState = {
   inputActions: null,
   input: null,
   target: null,
+  span: null,
 }
 
 const listeners = new Set<() => void>()

@@ -118,7 +118,7 @@ src/plugin/invariant.ts
 src/plugin/generated-catalog.ts — generated from models.json (do not edit)
 src/plugin/client/index.ts     — browser half: apply(ctx), slot registrations
 src/plugin/client/{state,recorder,waveform,components,settings,hotkey,
-                       questionTarget,questionOverlay}.ts(x)
+                       questionTarget,questionOverlay,submitSeat}.ts(x)
 src/plugin/client/voice.module.css
 scripts/gen-catalog.mjs        — catalog generator
 tsdown.config.ts               — node ESM + browser CJS-closure bundle
@@ -150,9 +150,10 @@ Endpoints:
 
 The layer lives in `src/plugin/client/hotkey.ts` and is installed from the
 client `apply()` inside `ctx.effect()`. Semantics: the first press calls
-`startRecording()`, the second one calls `stopWith('send')` — the same path as
-the pill's `↑`; `starting` defers the finish until the recorder exists,
-`processing` is ignored, `error` restarts. `action: 'insert'` (Settings →
+`startRecording()`, the second one finishes it exactly like a press on the
+composer's own submit button (`submitPressMode()`: send for an empty draft,
+insert at the caret otherwise); `starting` defers the finish until the recorder
+exists, `processing` is ignored, `error` restarts. `action: 'insert'` (Settings →
 Voice → Second press) switches the finish to insert-only.
 
 Why it does not use `ctx.shortcuts`: the Harness command registry validates
@@ -183,12 +184,24 @@ down out from under the microphone. The model select is hidden with
 `html[data-dsh-voice-recording] [data-slot="conversation.input.model"]`
 (`VoiceRow` sets the attribute), and `VoiceRow` also owns the analyser sampling
 and the `MAX_RECORDING_SECS` auto-stop that used to live in the pill. `⏹` stays
-"stop and insert"; sending is a separate button (`VoiceSendButton`) in the
-`conversation.input.activity` seat, immediately left of the resident submit —
-that submit is disabled while the draft is empty, which it is for the whole
-recording. That seat is `single`, so the registration shadows whatever occupies
-it (only the experimental voice-input bundle does); it is wrapped in a
-`try`/`catch` because the 0.1-era type map does not know the key. Two layout traps: a
+"stop and insert".
+
+**Sending is the composer's own button.** No second send affordance is
+registered (a `conversation.input.activity` seat occupant was tried and
+rejected: two arrows side by side): `submitSeat.ts` enables the resident submit
+in place while a recording is live and swallows its press in a capture-phase
+`click` listener, so the transcript is what goes out — `send` when the draft is
+empty, `insert` (at the caret) otherwise. Borrowing it is a DOM-level job
+because the composer disables that button for an empty draft, which is exactly
+the state in which someone dictates; `disabled` is only ever rewritten by React
+when its own prop flips, so the flip has to be undone by hand and put back
+afterwards (`releaseNativeSubmit`). Both decisions — "send or insert?" at press
+time and "should it look disabled again?" at release — read the editor itself
+(`composerHasText`: the `contenteditable`'s text), never the voice store: its
+copy of the draft arrives a beat after the splice, and a wrong guess leaves the
+button stuck in the wrong state. The node is found by
+`[data-composer-card] button[aria-busy]` (the bar gives no other button that
+attribute) and marked with `data-dsh-voice-submit`. Two layout traps: a
 `flex-basis: auto` strip lets the canvas' intrinsic width inflate the row (use
 `flex-basis: 0` plus a width-synced canvas), and the tool cluster sizes to its
 content, so it needs the `:has()` rule to grow while recording.

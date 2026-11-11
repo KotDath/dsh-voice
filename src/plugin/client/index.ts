@@ -16,11 +16,12 @@ import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 // Type-only: pulls ui-settings' SlotMap merge (the settings.section entry).
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
-import { MicButton, VoiceRow, VoiceSendButton, type VoiceSlotProps } from './components.tsx'
+import { MicButton, VoiceRow, type VoiceSlotProps } from './components.tsx'
 import { VoiceSettings } from './settings.tsx'
 import { installHotkeyLayer, loadHotkeyConfig } from './hotkey.ts'
+import { installSubmitLayer } from './submitSeat.ts'
 
-export { MicButton, VoiceRow, VoiceSendButton } from './components.tsx'
+export { MicButton, VoiceRow } from './components.tsx'
 export { VoiceSettings } from './settings.tsx'
 export { startRecording, cancelRecording, stopWith } from './recorder.ts'
 export { getVoiceState, subscribeVoice } from './state.ts'
@@ -60,23 +61,6 @@ export function apply(ctx: ClientContext): void {
     label: () => 'Voice recording',
   }, () => React.createElement(VoiceRow)))
 
-  // Send button for a dictation, in the seat just left of the composer's own
-  // submit (the resident one stays disabled while the draft is empty). The
-  // 0.1-era type map this package builds against predates that seat, while the
-  // live harness declares it — hence the structural view instead of the merge.
-  const looseSlots = slots as unknown as {
-    inject(key: string, callback: () => () => void): () => void
-    register(options: { name: string }, component: () => React.ReactElement | null): () => void
-  }
-  try {
-    looseSlots.inject('conversation.input.activity', () => looseSlots.register(
-      { name: 'conversation.input.activity' },
-      () => React.createElement(VoiceSendButton),
-    ))
-  } catch {
-    // The seat is optional: without it the shortcut's send path still works.
-  }
-
   // Settings page "Voice".
   slots.inject('settings.section', () => slots.register({
     name: 'settings.section',
@@ -89,6 +73,9 @@ export function apply(ctx: ClientContext): void {
   // recording, the second one finishes it (send). The layer lives on window in
   // the bubble phase and ignores events the Harness commands already handled.
   ctx.effect(() => installHotkeyLayer(), 'dsh-voice: hotkey layer')
+  // The composer's own submit button is the dictation's send control: the layer
+  // enables it while recording and takes the press (see submitSeat.ts).
+  ctx.effect(() => installSubmitLayer(), 'dsh-voice: composer submit seat')
   // Pick up the combination saved by a previous session (the defaults apply
   // while the host half is unmounted).
   void loadHotkeyConfig()

@@ -3,15 +3,17 @@
 Voice input for the DeepSeek Harness Web GUI — as an **official plugin bundle**.
 
 A microphone button (SVG icon) sits next to the send button in the composer.
-Clicking it brings up a ChatGPT-style recording "pill" above the composer:
+Clicking it starts recording in the composer's own tool row:
 
 ```
-[ ✕ cancel ] [~~~~~~~~ waveform ~~~~~~~~] [ ⏹ stop ] [ ↑ send ]
+[ ✕ cancel ] [~~~~~~~~ waveform ~~~~~~~~]   [ ⏹ ]  [ ↑ ]
 ```
 
 - **✕** — cancel the recording;
-- **⏹** — stop, transcribe and insert the text into the input (without sending);
-- **↑** — stop, transcribe and send to the chat immediately.
+- **⏹** — stop, transcribe and insert the text at the caret (without sending);
+- **↑** — the composer's own send button: it wakes up while you dictate, and
+  pressing it transcribes first — sending right away when the input is empty,
+  inserting at the caret when it already holds text.
 
 The waveform is a row of vertical bars: fresh signal arrives on the right,
 history fades left into a dim dotted baseline (like ChatGPT's voice mode).
@@ -72,13 +74,15 @@ dsh plugin --profile web remove dsh-voice
    downloadable with one click ("Download engine", releases built by CI).
 2. Pick a model from the catalog and press **Download** if it is not marked ✓.
 3. Use the mic button next to the send button in the composer.
-4. Record → `✕` cancel / `⏹` insert / `↑` send.
+4. Record → `✕` cancel / `⏹` insert at the caret / `↑` send (or insert when the
+   input is not empty).
 
 ### Keyboard activation
 
 `Ctrl+E` (or the **Record** value in Settings → Voice) toggles recording:
-the first press starts it, the second one finishes it — by default the
-transcript is inserted into the draft **and sent**, exactly like `↑`.
+the first press starts it, the second one finishes it exactly like a press on
+the composer's `↑` — the transcript is sent when the draft is empty and
+inserted at the caret when it is not.
 
 - The combination is configurable in **Settings → Voice → Voice input
   shortcut** (Record + Test + a fallback combination), and it is stored with
@@ -92,16 +96,16 @@ transcript is inserted into the draft **and sent**, exactly like `↑`.
   `Ctrl+Shift+,` and `Ctrl+Shift+.` are the only admitted Web/Linux bindings),
   so the layer listens on `window`, defers to events the application already
   handled, and stays out of terminals, dialogs and text composition.
-- `⏹` in the pill keeps working for "insert without sending"; the same is
-  available as the **Second press → Insert only** option.
+- `⏹` keeps working for "insert without sending"; the same is available as the
+  **Second press → Insert only** option.
 - **In place, like Codex.** While a recording runs the controls appear in the
   composer's **own tool row**: `✕` and the live waveform on the left, the mic
   button turning into `⏹` in place, and the model select stepping aside. Nothing
   changes height, so the ambient stats row under the card stays put and the stop
   button stays exactly under the microphone — no floating pill above the
-  composer. `⏹` stops and inserts the transcript, and a dedicated **send**
-  button appears next to the composer's own `↑` for sending the dictation
-  straight away; `Ctrl+E` does insert-and-send in one press.
+  composer. `⏹` stops and inserts the transcript; sending is the composer's own
+  `↑`, which the plugin enables while a recording is live (it is disabled for an
+  empty draft, which is exactly the state you dictate in).
 - **Question cards.** While an `ask_user_question` card occupies the composer
   (the option list with its “type your own answer” field), the same shortcut
   records and inserts the transcript into that card's answer field at the

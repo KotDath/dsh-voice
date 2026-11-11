@@ -11,6 +11,7 @@ import {
   installHotkeyLayer, matches, parseCombo, setHotkeyConfig, specFromEvent,
 } from '../src/plugin/client/hotkey.ts'
 import { spliceAtCaret } from '../src/plugin/client/questionTarget.ts'
+import { padTranscript } from '../src/plugin/client/recorder.ts'
 
 const results = { pass: 0, fail: 0, failures: [] }
 function ok(cond, label) {
@@ -87,6 +88,14 @@ eq(spliceAtCaret('hello world', 6, 11, 'there'), { next: 'hello there', caret: 1
 eq(spliceAtCaret('abc', 99, 99, 'x'), { next: 'abc x', caret: 5 }, 'clamps a stale caret')
 eq(spliceAtCaret('abc', -5, -1, 'x'), { next: 'xabc', caret: 1 }, 'clamps a negative caret')
 eq(spliceAtCaret('abc', 3, 3, ''), { next: 'abc', caret: 3 }, 'an empty transcript changes nothing')
+
+// ---------- padTranscript (composer draft, inserted at the captured caret) ----------
+const span = (start, end) => ({ start, end, draftRev: 1 })
+eq(padTranscript('', span(0, 0), 'hello'), 'hello', 'inserts into an empty draft')
+eq(padTranscript('hi', span(2, 2), 'there'), ' there', 'separates the transcript from a bare word')
+eq(padTranscript('hi ', span(3, 3), 'there'), 'there', 'never doubles an existing space')
+eq(padTranscript('hello world', span(6, 11), 'there'), 'there', 'replaces the selection')
+eq(padTranscript('hello world', span(5, 6), ' there '), ' there ', 'keeps the spaces the draft already has')
 
 // ---------- config plumbing (no DOM in Node) ----------
 eq(getHotkeyLabel(), 'Ctrl+E', 'defaults to Ctrl+E')

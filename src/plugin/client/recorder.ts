@@ -1,6 +1,6 @@
 /** Microphone capture + finishing (stop → transcribe → insert/send). */
 
-import { getVoiceState, setVoiceState, type VoiceRec } from './state.ts'
+import { getVoiceState, setVoiceState, subscribeVoice, type InsertSpan, type VoiceRec } from './state.ts'
 
 export async function apiCall<T>(path: string, body?: unknown): Promise<T> {
   let res: Response
@@ -42,6 +42,13 @@ function waitStop(rec: VoiceRec): Promise<void> {
 export function startRecording(): void {
   setVoiceState({ phase: 'starting', error: '' })
   getVoiceState().levels = []
+  // Remember where the cursor sits: the transcript goes exactly there, even if
+  // transcription takes a while (the span is revision-guarded by the editor).
+  const actions = getVoiceState().inputActions
+  const span = actions !== null && typeof actions.captureInsertion === 'function'
+    ? actions.captureInsertion()
+    : null
+  setVoiceState({ span })
   const run = (async () => {
     let stream: MediaStream | null = null
     try {
@@ -92,7 +99,7 @@ export function cancelRecording(): void {
     teardown(rec)
     const st = getVoiceState()
     st.rec = null
-    setVoiceState({ phase: 'idle', target: null })
+    setVoiceState({ phase: 'idle', target: null, span: null })
   })
 }
 
@@ -103,6 +110,40 @@ export function stopWith(mode: 'insert' | 'send'): void {
   const stopped = waitStop(rec)
   try { rec.recorder.stop() } catch { /* noop */ }
   stopped.then(() => void finish(rec, mode))
+}
+
+/**
+ * Finish a recording that may still be opening the microphone. A press during
+ * `starting` cannot stop a recorder that does not exist yet; it is carried out
+ * as soon as the phase flips to `recording`.
+ * @param mode - send the transcript or only insert it.
+ */
+export function requestFinish(mode: 'insert' | 'send'): void {
+  const phase = getVoiceState().phase
+  if (phase === 'recording') { stopWith(mode); return }
+  if (phase !== 'starting') return
+  const off = subscribeVoice(() => {
+    const next = getVoiceState().phase
+    if (next === 'recording') { off(); stopWith(mode) }
+    else if (next !== 'starting') off()
+  })
+}
+
+/**
+ * Wrap the transcript with the spaces the surrounding draft needs, so a
+ * dictation lands as its own word instead of gluing itself to the text around
+ * the caret.
+ * @param draft - the draft before insertion.
+ * @param span - insertion range in the same coordinates.
+ * @param text - recognized speech.
+ * @returns the text to splice in, spaces included.
+ */
+export function padTranscript(draft: string, span: InsertSpan, text: string): string {
+  const before = draft.slice(0, span.start)
+  const after = draft.slice(span.end)
+  const lead = before !== '' && !/\s$/.test(before) && !/^\s/.test(text) ? ' ' : ''
+  const tail = after !== '' && !/^\s/.test(after) && !/\s$/.test(text) ? ' ' : ''
+  return lead + text + tail
 }
 
 export async function finish(rec: VoiceRec, mode: 'insert' | 'send'): Promise<void> {
@@ -128,21 +169,38 @@ export async function finish(rec: VoiceRec, mode: 'insert' | 'send'): Promise<vo
     const target = getVoiceState().target
     if (target !== null) {
       target.insert(text)
-      setVoiceState({ phase: 'idle', target: null })
+      setVoiceState({ phase: 'idle', target: null, span: null })
       return
     }
 
     const actions = getVoiceState().inputActions
-    if (!actions || typeof actions.setDraft !== 'function') {
+    if (!actions || typeof actions.insertText !== 'function' || typeof actions.captureInsertion !== 'function') {
       setVoiceState({ phase: 'error', error: 'Composer is unavailable' })
       return
     }
-    const input = getVoiceState().input
-    const draft = input && typeof input.draft === 'string' ? input.draft : ''
-    actions.setDraft(draft ? draft + ' ' + text : text)
+    let span = getVoiceState().span
+    let spliced = span !== null && actions.insertText(padTranscript(draftOf(), span, text), span)
+    if (!spliced) {
+      // The draft moved on while the audio was in flight (the user kept typing):
+      // take the live caret instead of dumping the text at the end.
+      span = actions.captureInsertion()
+      spliced = actions.insertText(padTranscript(draftOf(), span, text), span)
+    }
+    if (!spliced) {
+      setVoiceState({ phase: 'error', error: 'Could not insert the transcript' })
+      return
+    }
+    setVoiceState({ phase: 'idle', span: null })
+    // Sending is the caller's decision (the composer's own submit button or the
+    // configured second press), never an automatic side effect of dictating.
     if (mode === 'send' && typeof actions.submit === 'function') actions.submit()
-    setVoiceState({ phase: 'idle' })
   } catch (err) {
     setVoiceState({ phase: 'error', error: err instanceof Error ? err.message : String(err) })
   }
+}
+
+/** The composer draft as the voice store last saw it (empty when unknown). */
+function draftOf(): string {
+  const input = getVoiceState().input
+  return input !== null && typeof input.draft === 'string' ? input.draft : ''
 }

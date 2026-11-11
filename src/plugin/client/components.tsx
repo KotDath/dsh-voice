@@ -1,21 +1,16 @@
 /** Composer-seat controls: the mic/stop button and the in-row recording strip. */
 
 import * as React from 'react'
-import { getVoiceState, setVoiceState, subscribeVoice, MAX_RECORDING_SECS } from './state.ts'
+import { getVoiceState, setVoiceState, subscribeVoice, MAX_RECORDING_SECS, type ComposerActions } from './state.ts'
 import { startRecording, cancelRecording, stopWith } from './recorder.ts'
 import { getHotkeyLabel, subscribeHotkeyConfig } from './hotkey.ts'
 import { drawWaveform } from './waveform.ts'
-import { MicIcon, XIcon, StopIcon, ArrowIcon, WarnIcon, SpinnerIcon } from './icons.tsx'
+import { MicIcon, XIcon, StopIcon, WarnIcon, SpinnerIcon } from './icons.tsx'
 import styles from './voice.module.css'
-
-interface InputActionsLike {
-  setDraft(text: string): void
-  submit?(): void
-}
 
 export interface VoiceSlotProps {
   input?: { draft?: string } | null
-  inputActions?: InputActionsLike | null
+  inputActions?: ComposerActions | null
 }
 
 function useVoiceState(): { phase: string; error: string } {
@@ -86,35 +81,16 @@ export function MicButton(props: VoiceSlotProps): React.JSX.Element | null {
 }
 
 /**
- * The voice send button, rendered into `conversation.input.activity` — the seat
- * immediately left of the composer's own submit button. The resident submit is
- * disabled while the draft is empty (which it is for the whole recording), so
- * this is the button that sends a dictation, without taking the stop button's
- * "insert" meaning away.
- */
-export function VoiceSendButton(): React.JSX.Element | null {
-  const v = useVoiceState()
-  if (v.phase !== 'recording') return null
-  return React.createElement('button', {
-    type: 'button',
-    className: styles.voiceSend,
-    title: 'Send the transcript',
-    'aria-label': 'Send the transcript',
-    onClick: () => stopWith('send'),
-  }, React.createElement(ArrowIcon))
-}
-
-/**
  * The in-row recording strip, rendered into `conversation.input.left`: cancel,
  * the live waveform, and a status word. It adds no height of its own — the
- * composer's row and the ambient stats row below it stay exactly where they
- * were, which keeps the stop button under the microphone.
+ * composer's row, the ambient stats row below it and the send button next to it
+ * stay exactly where they were.
  */
 export function VoiceRow(): React.JSX.Element | null {
   const v = useVoiceState()
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null)
 
-  // Sample the analyser into the shared level history (the pill used to do it).
+  // Sample the analyser into the shared level history.
   React.useEffect(() => {
     if (v.phase !== 'recording') return
     let elapsed = 0
