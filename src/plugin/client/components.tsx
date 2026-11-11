@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { getVoiceState, setVoiceState, subscribeVoice, MAX_RECORDING_SECS } from './state.ts'
 import { startRecording, cancelRecording, stopWith } from './recorder.ts'
+import { getHotkeyLabel, subscribeHotkeyConfig } from './hotkey.ts'
 import { drawWaveform } from './waveform.ts'
 import { MicIcon, XIcon, StopIcon, ArrowIcon, WarnIcon, SpinnerIcon } from './icons.tsx'
 import styles from './voice.module.css'
@@ -24,17 +25,43 @@ function useVoiceState(): { phase: string; error: string } {
   return { phase: st.phase, error: st.error }
 }
 
+/**
+ * Mirror the composer actions into the shared voice store. The cleanup drops
+ * them when this slot unmounts, so a hotkey cannot finish into a composer that
+ * is no longer on screen (and stale references never outlive their session).
+ */
+function useComposerBridge(props: VoiceSlotProps): void {
+  React.useEffect(() => {
+    const actions = props.inputActions ?? null
+    const input = props.input ?? null
+    const st = getVoiceState()
+    st.inputActions = actions
+    st.input = input
+    return () => {
+      const current = getVoiceState()
+      if (current.inputActions === actions) current.inputActions = null
+      if (current.input === input) current.input = null
+    }
+  }, [props.inputActions, props.input])
+}
+
+/** The configured combination, kept in sync with Settings → Voice. */
+function useHotkeyLabel(): string {
+  const [label, setLabel] = React.useState(getHotkeyLabel())
+  React.useEffect(() => subscribeHotkeyConfig(() => setLabel(getHotkeyLabel())), [])
+  return label
+}
+
 /** The mic button next to the send button. */
 export function MicButton(props: VoiceSlotProps): React.JSX.Element | null {
   const v = useVoiceState()
-  const st = getVoiceState()
-  if (props.inputActions) st.inputActions = props.inputActions
-  if (props.input) st.input = props.input
+  const hotkey = useHotkeyLabel()
+  useComposerBridge(props)
   if (v.phase !== 'idle') return null
   return React.createElement('button', {
     type: 'button',
     className: styles.voiceMic,
-    title: 'Voice input',
+    title: hotkey === '' ? 'Voice input' : 'Voice input (' + hotkey + ')',
     onClick: startRecording,
   }, React.createElement(MicIcon))
 }
@@ -43,9 +70,7 @@ export function MicButton(props: VoiceSlotProps): React.JSX.Element | null {
 export function RecordPill(props: VoiceSlotProps): React.JSX.Element | null {
   const v = useVoiceState()
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null)
-  const st = getVoiceState()
-  if (props.inputActions) st.inputActions = props.inputActions
-  if (props.input) st.input = props.input
+  useComposerBridge(props)
 
   // Level sampling + auto-stop at MAX_RECORDING_SECS.
   React.useEffect(() => {

@@ -74,6 +74,27 @@ dsh plugin --profile web remove dsh-voice
 3. Use the mic button next to the send button in the composer.
 4. Record → `✕` cancel / `⏹` insert / `↑` send.
 
+### Keyboard activation
+
+`Ctrl+E` (or the **Record** value in Settings → Voice) toggles recording:
+the first press starts it, the second one finishes it — by default the
+transcript is inserted into the draft **and sent**, exactly like `↑`.
+
+- The combination is configurable in **Settings → Voice → Voice input
+  shortcut** (Record + Test + a fallback combination), and it is stored with
+  the rest of the settings in `.dsh-voice/state.json`.
+- A **fallback** combination (`Ctrl+Alt+E` by default) is live at the same
+  time: browsers reserve plenty of `Ctrl+<key>` combinations (`Ctrl+E` opens
+  the address bar in some), and **Test** tells you whether a press actually
+  reached the page.
+- The shortcut is a plugin-owned listener, not a Harness command: the Harness
+  shortcut registry (`ctx.shortcuts`) refuses `Ctrl+E` on Web/Linux (`Ctrl+/`,
+  `Ctrl+Shift+,` and `Ctrl+Shift+.` are the only admitted Web/Linux bindings),
+  so the layer listens on `window`, defers to events the application already
+  handled, and stays out of terminals, dialogs and text composition.
+- `⏹` in the pill keeps working for "insert without sending"; the same is
+  available as the **Second press → Insert only** option.
+
 ## Architecture
 
 ```
@@ -216,14 +237,15 @@ security rules, troubleshooting).
 ```
 src/plugin/          — Node half (index.ts, HTTP /api/voice/*) + browser half
                        (client/: state, recorder, waveform, components,
-                       settings, voice.module.css) + generated catalog
+                       settings, hotkey, voice.module.css) + generated catalog
 scripts/gen-catalog.mjs — injects models.json into generated-catalog.ts
 tsdown.config.ts     — node ESM bundle + browser CJS-closure bundle
 cordis.patch.yml     — the bundle's composition patch (one row: id voice)
 package.json         — dsh.bundle.patch + dsh.client declarations
 models.json          — model catalog (source of truth)
-test/                — Node suites: run.mjs (bundle contract) + codex.mjs
-                       (Codex provider; DSH_VOICE_LIVE=1 adds real API calls)
+test/                — Node suites: run.mjs (bundle contract), codex.mjs
+                       (Codex provider; DSH_VOICE_LIVE=1 adds real API calls),
+                       hotkey.mjs (the Ctrl+E layer's pure helpers)
 .github/workflows/build-engine.yml — CI: plugin tests + 5-platform engine builds
 AGENTS.md            — agent install/update instructions
 README.md            — this document

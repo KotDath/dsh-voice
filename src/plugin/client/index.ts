@@ -17,11 +17,17 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { MicButton, RecordPill, type VoiceSlotProps } from './components.tsx'
 import { VoiceSettings } from './settings.tsx'
+import { installHotkeyLayer, loadHotkeyConfig } from './hotkey.ts'
 
 export { MicButton, RecordPill } from './components.tsx'
 export { VoiceSettings } from './settings.tsx'
 export { startRecording, cancelRecording, stopWith } from './recorder.ts'
 export { getVoiceState, subscribeVoice } from './state.ts'
+export {
+  armHotkeyTest, formatCombo, getHotkeyConfig, getHotkeyLabel, parseCombo,
+  setHotkeyConfig, specFromEvent, subscribeHotkeyConfig, suspendHotkey,
+} from './hotkey.ts'
+export type { HotkeyConfig, HotkeySpec } from './hotkey.ts'
 export type { VoiceSlotProps } from './components.tsx'
 
 /** Required services: slot registration (the browser runtime provides slots). */
@@ -58,4 +64,12 @@ export function apply(ctx: ClientContext): void {
     order: 25,
     label: () => 'Voice',
   }, () => React.createElement(VoiceSettings)))
+
+  // Keyboard activation (Ctrl+E by default): the first press starts a
+  // recording, the second one finishes it (send). The layer lives on window in
+  // the bubble phase and ignores events the Harness commands already handled.
+  ctx.effect(() => installHotkeyLayer(), 'dsh-voice: hotkey layer')
+  // Pick up the combination saved by a previous session (the defaults apply
+  // while the host half is unmounted).
+  void loadHotkeyConfig()
 }

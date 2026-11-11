@@ -6,6 +6,10 @@
 import * as React from 'react'
 import { apiCall } from './recorder.ts'
 import { fmtSize } from './state.ts'
+import {
+  armHotkeyTest, formatCombo, setHotkeyConfig, specFromEvent, suspendHotkey,
+  type HotkeyConfig,
+} from './hotkey.ts'
 import styles from './voice.module.css'
 
 interface ConfigView {
@@ -16,6 +20,7 @@ interface ConfigView {
   local: { binary: string; model: string }
   api: { url: string; model: string; hasKey: boolean }
   codex: { authPath: string; endpoint: string; model: string }
+  hotkey: HotkeyConfig
 }
 
 interface CodexStatusView {
@@ -71,6 +76,30 @@ export function VoiceSettings(): React.JSX.Element {
   const [codex, setCodex] = React.useState<CodexStatusView | null>(null)
   const [codexTest, setCodexTest] = React.useState('')
   const [codexTesting, setCodexTesting] = React.useState(false)
+  const [hotkeyCapture, setHotkeyCapture] = React.useState<'combo' | 'altCombo' | null>(null)
+  const [hotkeyTest, setHotkeyTest] = React.useState('')
+
+  // Capture the next real key press as the new combination. The hotkey layer is
+  // suspended meanwhile, so recording a combination never triggers a recording.
+  React.useEffect(() => {
+    if (hotkeyCapture === null) return
+    suspendHotkey(true)
+    const onKeyDown = (event: KeyboardEvent): void => {
+      event.preventDefault()
+      event.stopPropagation()
+      if (event.key === 'Escape') { setHotkeyCapture(null); return }
+      const spec = specFromEvent(event)
+      if (spec === null) return // modifiers only: keep waiting for a key
+      const text = formatCombo(spec)
+      setCfg((prev) => prev === null ? prev : { ...prev, hotkey: { ...prev.hotkey, [hotkeyCapture]: text } })
+      setHotkeyCapture(null)
+    }
+    window.addEventListener('keydown', onKeyDown, true)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown, true)
+      suspendHotkey(false)
+    }
+  }, [hotkeyCapture])
 
   const refreshCodex = (): void => {
     void apiCall<{ ok: boolean; status?: CodexStatusView }>('/api/voice/codex-status').then((r) => {
@@ -117,11 +146,29 @@ export function VoiceSettings(): React.JSX.Element {
     setCfg(next as unknown as ConfigView)
   }
   const save = (): void => {
-    void apiCall('/api/voice/config', cfg).then(() => {
+    void apiCall<Record<string, unknown>>('/api/voice/config', cfg).then((view) => {
+      // The host canonicalizes the combinations; adopt what it actually stored so
+      // the live layer, the tooltip and the fields never drift apart.
+      const stored = (view as { hotkey?: HotkeyConfig }).hotkey
+      if (stored !== undefined) {
+        setHotkeyConfig(stored)
+        setCfg((prev) => prev === null ? prev : { ...prev, hotkey: stored })
+      }
       setSaved('Saved ✓')
       refreshCodex()
       window.setTimeout(() => setSaved(''), 2000)
     }).catch(() => setSaved('Save failed'))
+  }
+  const updateHotkey = (patch: Partial<HotkeyConfig>): void => {
+    setCfg((prev) => prev === null ? prev : { ...prev, hotkey: { ...prev.hotkey, ...patch } })
+  }
+  const runHotkeyTest = (): void => {
+    setHotkeyTest('Press the shortcut now…')
+    void armHotkeyTest(5000).then((delivered) => {
+      setHotkeyTest(delivered
+        ? '✓ the page received the shortcut'
+        : '✗ not received — the browser or the system may reserve it; try the fallback')
+    })
   }
   const runCodexTest = (): void => {
     setCodexTesting(true)
@@ -296,6 +343,56 @@ export function VoiceSettings(): React.JSX.Element {
         React.createElement('option', { value: 'uk' }, 'Ukrainian'),
         React.createElement('option', { value: 'de' }, 'German'),
       ),
+    ),
+    // Keyboard activation. Plugin-owned listener: the Harness command registry
+    // refuses Ctrl+E on Web/Linux (see hotkey.ts), so the combination is applied
+    // here rather than through Settings → Shortcuts.
+    React.createElement('div', { className: styles.voiceField },
+      'Voice input shortcut',
+      React.createElement('div', { className: styles.voiceRow },
+        React.createElement('input', {
+          readOnly: true,
+          value: cfg.hotkey.combo,
+          placeholder: 'not set',
+          title: 'Primary combination',
+        }),
+        React.createElement('button', {
+          type: 'button',
+          className: styles.voiceAction,
+          onClick: () => setHotkeyCapture('combo'),
+        }, hotkeyCapture === 'combo' ? 'Press keys… (Esc cancels)' : 'Record'),
+        React.createElement('button', { type: 'button', className: styles.voiceAction, onClick: runHotkeyTest }, 'Test'),
+      ),
+      React.createElement('div', { className: styles.voiceRow },
+        React.createElement('input', {
+          readOnly: true,
+          value: cfg.hotkey.altCombo,
+          placeholder: 'none',
+          title: 'Fallback combination, active at the same time',
+        }),
+        React.createElement('button', {
+          type: 'button',
+          className: styles.voiceAction,
+          onClick: () => setHotkeyCapture('altCombo'),
+        }, hotkeyCapture === 'altCombo' ? 'Press keys… (Esc cancels)' : 'Record fallback'),
+        React.createElement('button', {
+          type: 'button',
+          className: styles.voiceAction,
+          onClick: () => updateHotkey({ altCombo: '' }),
+        }, 'Clear'),
+      ),
+      React.createElement('label', { className: styles.voiceField },
+        'Second press',
+        React.createElement('select', {
+          value: cfg.hotkey.action,
+          onChange: (e: React.ChangeEvent<HTMLSelectElement>) => updateHotkey({ action: e.target.value === 'insert' ? 'insert' : 'send' }),
+        },
+          React.createElement('option', { value: 'send' }, 'Send the transcript'),
+          React.createElement('option', { value: 'insert' }, 'Insert into the draft only'),
+        ),
+      ),
+      React.createElement('div', { className: styles.voiceHint },
+        'First press starts recording, the second finishes it. The fallback combination is active at the same time — useful when the browser reserves the main one (Ctrl+E opens the address bar in some browsers). Press Save to apply. ' + hotkeyTest),
     ),
     React.createElement('div', { className: styles.voiceRow },
       React.createElement('button', { type: 'button', className: styles.voiceSave, onClick: save }, 'Save'),

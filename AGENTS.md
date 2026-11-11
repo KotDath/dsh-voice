@@ -102,7 +102,7 @@ build after a live re-mount.
 npm install          # dev deps; uses local .npm-cache if ~/.npm is EROFS
 npm run build        # scripts/gen-catalog.mjs → src/plugin/generated-catalog.ts
                      # tsc → typecheck, tsdown → lib/index.js + lib/client.js
-npm test             # both Node suites: run.mjs + codex.mjs (offline)
+npm test             # three Node suites: run.mjs + codex.mjs + hotkey.mjs
 npm run test:live    # codex.mjs against the real ChatGPT backend (needs a login)
 ```
 
@@ -117,7 +117,7 @@ src/plugin/types.ts            — wire types for the endpoints
 src/plugin/invariant.ts
 src/plugin/generated-catalog.ts — generated from models.json (do not edit)
 src/plugin/client/index.ts     — browser half: apply(ctx), slot registrations
-src/plugin/client/{state,recorder,waveform,components,settings}.ts(x)
+src/plugin/client/{state,recorder,waveform,components,settings,hotkey}.ts(x)
 src/plugin/client/voice.module.css
 scripts/gen-catalog.mjs        — catalog generator
 tsdown.config.ts               — node ESM + browser CJS-closure bundle
@@ -144,6 +144,38 @@ Endpoints:
 | POST `/api/voice/engine-download` | download + sha256-verify engine |
 | GET `/api/voice/download-status` | poll downloads |
 | POST `/api/voice/transcribe` | audio base64 → text |
+
+## Keyboard activation (Ctrl+E)
+
+The layer lives in `src/plugin/client/hotkey.ts` and is installed from the
+client `apply()` inside `ctx.effect()`. Semantics: the first press calls
+`startRecording()`, the second one calls `stopWith('send')` — the same path as
+the pill's `↑`; `starting` defers the finish until the recorder exists,
+`processing` is ignored, `error` restarts. `action: 'insert'` (Settings →
+Voice → Second press) switches the finish to insert-only.
+
+Why it does not use `ctx.shortcuts`: the Harness command registry validates
+defaults with `isWebBindingAllowed`/`bindingIssue`, and on **Web/Linux** only
+`Ctrl+/`, `Ctrl+Shift+,` and `Ctrl+Shift+.` are admitted — `Ctrl+E` answers
+`unsupported-browser` and `register()` throws. Do not "fix" this by adding
+`ctx.shortcuts`; the raw listener is deliberate. It hangs on `window` in the
+bubble phase, so an event the application already consumed
+(`event.defaultPrevented`) is left alone.
+
+Guards, in order: `repeat`, IME (`isComposing`/`keyCode 229`), suspended
+(Settings records a new combination), `.xterm` target (Ctrl+E is end-of-line in
+a readline terminal), a visible modal/dialog, missing composer actions, and
+`processing`. Matching uses the physical `event.code`, so a Russian layout needs
+no second binding.
+
+Config: `hotkey.combo` / `hotkey.altCombo` / `hotkey.action` in
+`.dsh-voice/state.json`. The host canonicalizes both combinations
+(`normalizeHotkeyCombo`) and rejects anything that is not one physical key plus
+1–4 known modifiers; a rejected value leaves the previous one in place. Both
+combinations are live at once because browsers reserve plenty of
+`Ctrl+<letter>` combinations — the Settings **Test** button reports whether a
+press actually reached the page. `test/hotkey.mjs` covers the pure helpers
+(unbound `altCombo` is the empty string, not `null`).
 
 ## Security rules (do not regress)
 
@@ -214,6 +246,7 @@ Endpoints:
 | Codex provider: 403 or an HTML body | Cloudflare: the request had no browser-like `User-Agent`. Keep `CODEX_USER_AGENT`. |
 | Codex provider: 500 "Error in ASR API" | An unsupported `language` value was sent — `auto` is rejected, so it must be omitted (the code already does). |
 | `lib/*` looks stale | Rebuild with `npm run build`; committed artifacts must match `src/`. |
+| Ctrl+E does nothing | The browser reserved the combination (it never reaches the page) — press the fallback `Ctrl+Alt+E`, or Settings → Voice → **Test** to check, then **Record** another combination. If a stale bundle is mounted, rebuild and re-mount (see "Restart vs live reload"). Never route this through `ctx.shortcuts`: on Web/Linux the registry rejects it. |
 | `deps.shell.run is not a function` | The `ctx.shell` seam was renamed in harness 0.2: 0.1 was `resolve()` + `run(spec)` + `start(spec)`, 0.2 is `resolve()` + `execute(spec)` → `await handle.result()`. `runShell()` in `src/plugin/index.ts` speaks both, so this error means the mounted bundle is older than the fix. The devDependencies still pin the 0.1-era `@deepseek-ai/*` types, where `run` exists — `tsc` therefore cannot catch this drift; the shell doubles in `test/codex.mjs` implement the live 0.2 shape (`execute`/`result`, no `run`) plus one legacy-change case for that reason. |
 
 ## Repository conventions
@@ -222,8 +255,9 @@ Endpoints:
   committed). Released versions are pinned by git tags (`v0.4.0`, …).
 - `models.json` is the human-readable model catalog; the build injects it into
   `generated-catalog.ts` — never hand-edit the generated file.
-- Tests live in `test/` and run on Node only (`npm test` runs both suites; the
-  `codex` suite mounts the built host half on a fake Cordis context and is
-  offline unless `DSH_VOICE_LIVE=1`). The CI job `plugin-tests` runs the build
-  + `npm test`.
+- Tests live in `test/` and run on Node only (`npm test` runs all three suites;
+  the `codex` suite mounts the built host half on a fake Cordis context and is
+  offline unless `DSH_VOICE_LIVE=1`; `hotkey.mjs` imports the TypeScript
+  hotkey module straight from `src/`, relying on Node's type stripping). The CI
+  job `plugin-tests` runs the build + `npm test`.
 - UI strings and comments in code are English.

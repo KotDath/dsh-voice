@@ -44,7 +44,7 @@
     "prepack": "npm run build",
     "build": "node scripts/gen-catalog.mjs && tsc -p tsconfig.json && tsdown -c tsdown.config.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node test/run.mjs && node test/codex.mjs",
+    "test": "node test/run.mjs && node test/codex.mjs && node test/hotkey.mjs",
     "test:live": "DSH_VOICE_LIVE=1 node test/codex.mjs"
   },
   "devDependencies": {

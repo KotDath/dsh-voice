@@ -213,6 +213,21 @@ async function main() {
   eq(r.body.codex.endpoint, 'https://example.invalid/transcribe', 'config stores the codex endpoint')
   eq(r.body.codex.model, 'gpt-transcribe', 'config stores the codex model')
 
+  // ---------- hotkey config: canonical forms, strict validation ----------
+  r = await call(routes, '/api/voice/config')
+  eq(r.body.hotkey, { combo: 'Ctrl+E', altCombo: 'Ctrl+Alt+E', action: 'send' }, 'config exposes the default hotkey')
+  r = await call(routes, '/api/voice/config', { method: 'POST', body: { hotkey: { combo: 'ctrl+shift+e' } } })
+  eq(r.body.hotkey.combo, 'Ctrl+Shift+E', 'hotkey combo is stored canonically')
+  r = await call(routes, '/api/voice/config', { method: 'POST', body: { hotkey: { combo: 'E' } } })
+  eq(r.body.hotkey.combo, 'Ctrl+Shift+E', 'hotkey rejects a modifier-less combination')
+  r = await call(routes, '/api/voice/config', { method: 'POST', body: { hotkey: { combo: 'Ctrl+E; touch /tmp/pwned' } } })
+  eq(r.body.hotkey.combo, 'Ctrl+Shift+E', 'hotkey rejects a non-combination string')
+  r = await call(routes, '/api/voice/config', { method: 'POST', body: { hotkey: { altCombo: '', action: 'insert' } } })
+  eq(r.body.hotkey.altCombo, '', 'hotkey fallback can be cleared')
+  eq(r.body.hotkey.action, 'insert', 'hotkey finish action is stored')
+  r = await call(routes, '/api/voice/config', { method: 'POST', body: { hotkey: { action: 'rm -rf /' } } })
+  eq(r.body.hotkey.action, 'insert', 'hotkey rejects an unknown finish action')
+
   // ---------- status: no login ----------
   r = await call(routes, '/api/voice/codex-status')
   eq(r.body.ok, true, 'codex-status answers ok')

@@ -73,6 +73,19 @@ export const version = readOwnVersion()
 const LANGUAGE_CODES = { auto: 1, ru: 1, en: 1, uk: 1, de: 1 } as const
 const PROVIDERS = { tcpp: 1, local: 1, api: 1, codex: 1 } as const
 
+/**
+ * Hotkey settings. `combo`/`altCombo` are display forms (`Ctrl+E`,
+ * `Ctrl+Alt+E`); the canonical order is Ctrl, Alt, Shift, Meta. The browser half
+ * parses them with the same grammar, so the host validates what it stores and
+ * never forwards user text anywhere else (these strings are inert).
+ */
+interface HotkeyConfig {
+  combo: string
+  /** Fallback combination for a browser that reserves `combo`; '' disables it. */
+  altCombo: string
+  action: 'send' | 'insert'
+}
+
 interface VoiceConfig {
   provider: 'tcpp' | 'local' | 'api' | 'codex'
   language: keyof typeof LANGUAGE_CODES
@@ -80,6 +93,7 @@ interface VoiceConfig {
   local: { binary: string; model: string }
   api: { url: string; model: string; key: string }
   codex: { authPath: string; endpoint: string; model: string }
+  hotkey: HotkeyConfig
 }
 
 interface VoiceConfigPatch {
@@ -89,6 +103,48 @@ interface VoiceConfigPatch {
   local?: Record<string, unknown>
   api?: Record<string, unknown>
   codex?: Record<string, unknown>
+  hotkey?: Record<string, unknown>
+}
+
+const HOTKEY_MODIFIERS = ['ctrl', 'alt', 'shift', 'meta'] as const
+const HOTKEY_MODIFIER_LABELS: Record<(typeof HOTKEY_MODIFIERS)[number], string> = {
+  ctrl: 'Ctrl', alt: 'Alt', shift: 'Shift', meta: 'Meta',
+}
+/** Accepted physical keys: Latin letters (bare or `KeyX`), top-row digits, F1–F12. */
+const HOTKEY_KEY_LETTER = /^(?:key)?([a-z])$/u
+const HOTKEY_KEY_DIGIT = /^(?:digit)?([0-9])$/u
+const HOTKEY_KEY_FN = /^f([1-9]|1[0-2])$/u
+
+/**
+ * Canonicalize a stored combination. Mirrors `parseCombo()` in the browser half:
+ * at least one modifier, one physical key, no duplicated modifiers.
+ * @param raw - user or state-file text.
+ * @returns canonical form, '' for an intentionally unbound slot, null if invalid.
+ */
+function normalizeHotkeyCombo(raw: string): string | null {
+  const text = raw.trim()
+  if (text === '') return ''
+  const parts = text.split('+').map((part) => part.trim().toLowerCase())
+  if (parts.length < 2 || parts.some((part) => part === '')) return null
+  const modifiers = new Set<string>()
+  for (let i = 0; i < parts.length - 1; i++) {
+    const modifier = parts[i]!
+    if (!(HOTKEY_MODIFIERS as readonly string[]).includes(modifier) || modifiers.has(modifier)) return null
+    modifiers.add(modifier)
+  }
+  const key = parts[parts.length - 1]!
+  const letter = HOTKEY_KEY_LETTER.exec(key)
+  const digit = HOTKEY_KEY_DIGIT.exec(key)
+  const fn = HOTKEY_KEY_FN.exec(key)
+  const code = letter !== null
+    ? 'Key' + letter[1]!.toUpperCase()
+    : digit !== null ? 'Digit' + digit[1] : fn !== null ? 'F' + fn[1] : null
+  if (code === null) return null
+  const display = code.startsWith('Key') ? code.slice(3) : code.startsWith('Digit') ? code.slice(5) : code
+  const ordered = HOTKEY_MODIFIERS.filter((modifier) => modifiers.has(modifier))
+    .map((modifier) => HOTKEY_MODIFIER_LABELS[modifier])
+  ordered.push(display)
+  return ordered.join('+')
 }
 
 function publicConfigView(config: VoiceConfig) {
@@ -100,6 +156,7 @@ function publicConfigView(config: VoiceConfig) {
     local: { ...config.local },
     api: { url: config.api.url, model: config.api.model, hasKey: config.api.key !== '' },
     codex: { ...config.codex },
+    hotkey: { ...config.hotkey },
   }
 }
 
@@ -127,6 +184,20 @@ function applyConfigPatch(config: VoiceConfig, patch: VoiceConfigPatch | null | 
       if (g === 'codex' && typeof p.model === 'string') config.codex.model = p.model.trim()
     }
   }
+  const hotkey = patch.hotkey
+  if (hotkey !== undefined && hotkey !== null && typeof hotkey === 'object') {
+    if (typeof hotkey.combo === 'string') {
+      // An empty primary combination would leave no way to start voice input
+      // from the keyboard, so only a valid one is accepted here.
+      const combo = normalizeHotkeyCombo(hotkey.combo)
+      if (combo !== null && combo !== '') config.hotkey.combo = combo
+    }
+    if (typeof hotkey.altCombo === 'string') {
+      const altCombo = normalizeHotkeyCombo(hotkey.altCombo)
+      if (altCombo !== null) config.hotkey.altCombo = altCombo
+    }
+    if (hotkey.action === 'send' || hotkey.action === 'insert') config.hotkey.action = hotkey.action
+  }
 }
 
 // ── persisted settings ──────────────────────────────────────────────────────
@@ -148,6 +219,7 @@ function configSnapshot(config: VoiceConfig): string {
     local: config.local,
     api: { url: config.api.url, model: config.api.model, key: config.api.key },
     codex: config.codex,
+    hotkey: config.hotkey,
   }, null, 2) + '\n'
 }
 
@@ -898,6 +970,7 @@ export function apply(ctx: Context): void {
     local: { binary: '', model: '' },
     api: { url: 'https://api.openai.com/v1/audio/transcriptions', model: 'gpt-4o-transcribe', key: '' },
     codex: { authPath: '', endpoint: CODEX_DEFAULT_ENDPOINT, model: '' },
+    hotkey: { combo: 'Ctrl+E', altCombo: 'Ctrl+Alt+E', action: 'send' },
   }
 
   const deps: ShellDeps = { shell: shell as ShellDeps['shell'] }
