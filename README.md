@@ -94,6 +94,12 @@ transcript is inserted into the draft **and sent**, exactly like `↑`.
   handled, and stays out of terminals, dialogs and text composition.
 - `⏹` in the pill keeps working for "insert without sending"; the same is
   available as the **Second press → Insert only** option.
+- **Question cards.** While an `ask_user_question` card occupies the composer
+  (the option list with its “type your own answer” field), the same shortcut
+  records and inserts the transcript into that card's answer field at the
+  caret — it never submits the answer, so you can review it and press Enter
+  yourself. The composer's pill is not mounted in that presentation, so a small
+  floating indicator (Cancel / Stop) appears just above the card instead.
 
 ## Architecture
 

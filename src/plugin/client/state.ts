@@ -13,6 +13,15 @@ export interface VoiceRec {
   mime: string
 }
 
+/**
+ * A place the transcript can go when the composer is not mounted — today the
+ * free-text answer field of an `ask_user_question` card, which occupies the
+ * composer seat while the agent waits for an answer.
+ */
+export interface VoiceTarget {
+  insert(text: string): void
+}
+
 export interface VoiceState {
   phase: VoicePhase
   error: string
@@ -20,6 +29,8 @@ export interface VoiceState {
   levels: number[]
   inputActions: { setDraft(text: string): void; submit?(): void } | null
   input: { draft?: string } | null
+  /** Explicit insertion target captured when a recording starts; null = composer. */
+  target: VoiceTarget | null
   waveColor?: string
 }
 
@@ -32,6 +43,7 @@ const state: VoiceState = {
   levels: [],
   inputActions: null,
   input: null,
+  target: null,
 }
 
 const listeners = new Set<() => void>()

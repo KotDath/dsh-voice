@@ -117,7 +117,8 @@ src/plugin/types.ts            — wire types for the endpoints
 src/plugin/invariant.ts
 src/plugin/generated-catalog.ts — generated from models.json (do not edit)
 src/plugin/client/index.ts     — browser half: apply(ctx), slot registrations
-src/plugin/client/{state,recorder,waveform,components,settings,hotkey}.ts(x)
+src/plugin/client/{state,recorder,waveform,components,settings,hotkey,
+                       questionTarget,questionOverlay}.ts(x)
 src/plugin/client/voice.module.css
 scripts/gen-catalog.mjs        — catalog generator
 tsdown.config.ts               — node ESM + browser CJS-closure bundle
@@ -167,6 +168,22 @@ Guards, in order: `repeat`, IME (`isComposing`/`keyCode 229`), suspended
 a readline terminal), a visible modal/dialog, missing composer actions, and
 `processing`. Matching uses the physical `event.code`, so a Russian layout needs
 no second binding.
+
+**Question cards take precedence.** An `ask_user_question` card is registered
+into the `conversation.composer` chain, so it replaces the whole composer stack
+(`conversation.composer.bar` + `conversation.input.dock`): the mic button and
+the pill unmount, and `inputActions` goes null. The hotkey layer therefore
+resolves a target before deciding: `questionAnswerField()` looks for a
+`[data-composer-seat]` whose `[data-question-key]` card holds a visible,
+enabled `textarea`. That pairing is unambiguous because the chat composer is a
+Lexical `contenteditable`, while the card's "your own answer" field is a real
+textarea. With a target, the transcript is inserted at the caret through the
+prototype `value` setter plus a synthetic `input` event (the field is React
+controlled) and the answer is **not** submitted — the card's own Enter/Send
+stays the user's action. Recording feedback comes from
+`questionOverlay.ts`, a plain-DOM floating pill (no React root, no new bundle
+externals) positioned above the seat; it is destroyed as soon as the target
+clears. `spliceAtCaret()` is the pure, tested half of that insertion.
 
 Config: `hotkey.combo` / `hotkey.altCombo` / `hotkey.action` in
 `.dsh-voice/state.json`. The host canonicalizes both combinations

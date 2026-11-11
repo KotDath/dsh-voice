@@ -10,6 +10,7 @@ import {
   formatCombo, getHotkeyConfig, getHotkeyLabel, hotkeyAction, ignoreReason,
   installHotkeyLayer, matches, parseCombo, setHotkeyConfig, specFromEvent,
 } from '../src/plugin/client/hotkey.ts'
+import { spliceAtCaret } from '../src/plugin/client/questionTarget.ts'
 
 const results = { pass: 0, fail: 0, failures: [] }
 function ok(cond, label) {
@@ -63,19 +64,29 @@ eq(hotkeyAction('recording', 'insert'), 'finish-insert', 'recording finishes by 
 eq(hotkeyAction('processing'), 'ignore', 'processing ignores the press')
 
 // ---------- ignoreReason ----------
-const clean = { repeat: false, composing: false, prevented: false, terminal: false, modal: false, hasComposer: true, phase: 'recording' }
+const clean = { repeat: false, composing: false, prevented: false, terminal: false, modal: false, hasComposer: true, hasTarget: false, phase: 'recording' }
 eq(ignoreReason(clean), null, 'a clean press belongs to voice input')
+eq(ignoreReason({ ...clean, hasComposer: false, hasTarget: true }), null, 'a question-card target stands in for the composer')
+eq(ignoreReason({ ...clean, hasComposer: false, hasTarget: false }), 'no-target', 'needs either a composer or a question-card target')
 for (const [field, value, reason] of [
   ['repeat', true, 'repeat'],
   ['composing', true, 'composing'],
   ['prevented', true, 'prevented'],
   ['terminal', true, 'terminal'],
   ['modal', true, 'modal'],
-  ['hasComposer', false, 'no-composer'],
   ['phase', 'processing', 'processing'],
 ]) {
   eq(ignoreReason({ ...clean, [field]: value }), reason, `ignores ${reason}`)
 }
+
+// ---------- spliceAtCaret (question-card answer field) ----------
+eq(spliceAtCaret('', 0, 0, 'hello'), { next: 'hello', caret: 5 }, 'inserts into an empty field')
+eq(spliceAtCaret('hi', 2, 2, 'there'), { next: 'hi there', caret: 8 }, 'separates the transcript from a bare word')
+eq(spliceAtCaret('hi ', 3, 3, 'there'), { next: 'hi there', caret: 8 }, 'never doubles an existing space')
+eq(spliceAtCaret('hello world', 6, 11, 'there'), { next: 'hello there', caret: 11 }, 'replaces the selection')
+eq(spliceAtCaret('abc', 99, 99, 'x'), { next: 'abc x', caret: 5 }, 'clamps a stale caret')
+eq(spliceAtCaret('abc', -5, -1, 'x'), { next: 'xabc', caret: 1 }, 'clamps a negative caret')
+eq(spliceAtCaret('abc', 3, 3, ''), { next: 'abc', caret: 3 }, 'an empty transcript changes nothing')
 
 // ---------- config plumbing (no DOM in Node) ----------
 eq(getHotkeyLabel(), 'Ctrl+E', 'defaults to Ctrl+E')

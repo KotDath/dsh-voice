@@ -92,7 +92,7 @@ export function cancelRecording(): void {
     teardown(rec)
     const st = getVoiceState()
     st.rec = null
-    setVoiceState({ phase: 'idle' })
+    setVoiceState({ phase: 'idle', target: null })
   })
 }
 
@@ -122,6 +122,15 @@ export async function finish(rec: VoiceRec, mode: 'insert' | 'send'): Promise<vo
     const result = await apiCall<{ ok: boolean; text?: string; error?: string }>('/api/voice/transcribe', { dataBase64, mimeType: rec.mime })
     const text = String(result.text ?? '').trim()
     if (!text) { setVoiceState({ phase: 'error', error: 'No speech recognized' }); return }
+
+    // A question card occupies the composer seat: its answer field is the
+    // target, and the transcript is inserted there instead of into a draft.
+    const target = getVoiceState().target
+    if (target !== null) {
+      target.insert(text)
+      setVoiceState({ phase: 'idle', target: null })
+      return
+    }
 
     const actions = getVoiceState().inputActions
     if (!actions || typeof actions.setDraft !== 'function') {

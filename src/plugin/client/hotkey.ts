@@ -18,6 +18,8 @@
 
 import { getVoiceState, setVoiceState, subscribeVoice, type VoicePhase } from './state.ts'
 import { apiCall, startRecording, stopWith } from './recorder.ts'
+import { questionAnswerField, questionTarget } from './questionTarget.ts'
+import { startQuestionOverlay, type QuestionOverlay } from './questionOverlay.ts'
 
 /** One normalized combination: a physical key plus an exact modifier set. */
 export interface HotkeySpec {
@@ -51,6 +53,8 @@ export interface HotkeyInput {
   terminal: boolean
   modal: boolean
   hasComposer: boolean
+  /** An `ask_user_question` card offers its own insertion target. */
+  hasTarget: boolean
   phase: VoicePhase
 }
 
@@ -192,7 +196,7 @@ export function ignoreReason(input: HotkeyInput): string | null {
   if (input.prevented) return 'prevented'
   if (input.terminal) return 'terminal'
   if (input.modal) return 'modal'
-  if (!input.hasComposer) return 'no-composer'
+  if (!input.hasComposer && !input.hasTarget) return 'no-target'
   if (input.phase === 'processing') return 'processing'
   return null
 }
@@ -209,6 +213,7 @@ const configListeners = new Set<() => void>()
 interface TestWaiter { resolve(ok: boolean): void }
 let testWaiters: TestWaiter[] = []
 let testTimer: number | null = null
+let overlay: QuestionOverlay | null = null
 
 /** Recompute the parsed specs from the current config. */
 function rebuild(): void {
@@ -321,6 +326,24 @@ function inTerminal(target: EventTarget | null): boolean {
 }
 
 /**
+ * Show the floating indicator exactly while a question-card recording is alive
+ * (the composer's own pill is not mounted in that presentation).
+ */
+function syncOverlay(): void {
+  const state = getVoiceState()
+  const wanted = state.target !== null && state.phase !== 'idle'
+  if (wanted) {
+    if (overlay === null) overlay = startQuestionOverlay()
+    overlay.refresh()
+    return
+  }
+  if (overlay !== null) {
+    overlay.destroy()
+    overlay = null
+  }
+}
+
+/**
  * Attach the keyboard layer.
  * @returns disposer that removes the listener and pending state.
  */
@@ -341,6 +364,10 @@ export function installHotkeyLayer(): () => void {
     }
 
     const state = getVoiceState()
+    // A question card replaces the composer: its answer field becomes the target
+    // and the transcript is inserted there, never submitted.
+    const field = questionAnswerField()
+    const finish: HotkeyFinish = field === null ? config.action : 'insert'
     const reason = ignoreReason({
       repeat: event.repeat,
       composing: event.isComposing,
@@ -348,22 +375,24 @@ export function installHotkeyLayer(): () => void {
       terminal: inTerminal(event.target),
       modal: modalOpen(),
       hasComposer: state.inputActions !== null,
+      hasTarget: field !== null,
       phase: state.phase,
     })
     if (reason !== null) return
 
-    const action = hotkeyAction(state.phase, config.action)
+    const action = hotkeyAction(state.phase, finish)
     if (action === 'ignore') return
     event.preventDefault()
 
     if (action === 'start') {
       if (state.phase === 'error') setVoiceState({ phase: 'idle', error: '' })
       pendingFinish = null
+      setVoiceState({ target: field === null ? null : questionTarget(field) })
       startRecording()
       return
     }
     if (action === 'pending') {
-      pendingFinish = config.action
+      pendingFinish = finish
       return
     }
     pendingFinish = null
@@ -374,12 +403,13 @@ export function installHotkeyLayer(): () => void {
   // finish as soon as the phase flips to `recording`.
   const unsubscribePhase = subscribeVoice(() => {
     const phase = getVoiceState().phase
-    if (phase === 'idle' || phase === 'error') { pendingFinish = null; return }
-    if (pendingFinish !== null && phase === 'recording') {
+    if (phase === 'idle' || phase === 'error') pendingFinish = null
+    else if (pendingFinish !== null && phase === 'recording') {
       const finish = pendingFinish
       pendingFinish = null
       stopWith(finish)
     }
+    syncOverlay()
   })
 
   window.addEventListener('keydown', onKeyDown, { passive: false })
@@ -388,6 +418,8 @@ export function installHotkeyLayer(): () => void {
   return () => {
     window.removeEventListener('keydown', onKeyDown)
     unsubscribePhase()
+    overlay?.destroy()
+    overlay = null
     installed = false
     pendingFinish = null
   }
