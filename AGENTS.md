@@ -118,7 +118,7 @@ src/plugin/invariant.ts
 src/plugin/generated-catalog.ts — generated from models.json (do not edit)
 src/plugin/client/index.ts     — browser half: apply(ctx), slot registrations
 src/plugin/client/{state,recorder,waveform,components,settings,hotkey,
-                       questionTarget,questionOverlay,composer}.ts(x)
+                       questionTarget,questionOverlay}.ts(x)
 src/plugin/client/voice.module.css
 scripts/gen-catalog.mjs        — catalog generator
 tsdown.config.ts               — node ESM + browser CJS-closure bundle
@@ -169,20 +169,20 @@ a readline terminal), a visible modal/dialog, missing composer actions, and
 `processing`. Matching uses the physical `event.code`, so a Russian layout needs
 no second binding.
 
-**The composer takeover.** While a recording is active the resident composer is
-replaced by `composer.tsx`, registered into the `conversation.composer` chain:
-the draft stays readable on top, the tool row becomes cancel / waveform / stop /
-send. The entry is registered and disposed with the phase (`starting`,
-`recording`, `processing`, `error` versus everything else) rather than driven by
-its selector: chain selectors must be pure and the chain re-elects only when the
-slot version changes, so `select` is a constant and the registration churn is
-the trigger. The seat is declared with `overlay: true`, so the fallback InputBar
-stays mounted but hidden while the takeover is elected — that keeps
-`inputActions` alive and makes `send` work mid-takeover (the takeover re-installs
-the store bridge anyway). The dock pill is deliberately kept: on a brand-new
-session (`fallbackOnly`), or if the registration throws, it is the only
-recording UI. `lib/client.js` must stay free of hardcoded colors — the CSS token
-test enforces it.
+**In-row recording strip.** The controls live inside the composer's own tool
+row instead of a separate pill or a composer takeover: `conversation.input.left`
+holds `✕` plus the live waveform, and the mic entry in
+`conversation.input.right` turns into `⏹` (then a spinner) in place. Nothing
+changes the card height, which is why the ambient stats row below the composer
+and the mic button's position survive a recording — a full
+`conversation.composer` takeover was tried and rejected: it unmounted the
+`conversation.composer.dock` row, so the seat shrank and the stop button slid
+down out from under the microphone. The model select is hidden with
+`html[data-dsh-voice-recording] [data-slot="conversation.input.model"]`
+(`VoiceRow` sets the attribute), and `VoiceRow` also owns the analyser sampling
+and the `MAX_RECORDING_SECS` auto-stop that used to live in the pill. Only the
+hotkey keeps the one-press "insert and send" path; from the row it is `⏹` then
+the composer's `↑`.
 
 **Question cards take precedence.** An `ask_user_question` card is registered
 into the `conversation.composer` chain, so it replaces the whole composer stack

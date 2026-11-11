@@ -94,11 +94,13 @@ transcript is inserted into the draft **and sent**, exactly like `↑`.
   handled, and stays out of terminals, dialogs and text composition.
 - `⏹` in the pill keeps working for "insert without sending"; the same is
   available as the **Second press → Insert only** option.
-- **In place, like Codex.** While a recording runs, the composer card itself is
-  replaced: the draft text stays visible on top and the tool row becomes
-  `✕ / waveform / ⏹ / ↑`. There is no separate floating pill — it survives only
-  as a fallback for a brand-new session without a resident composer (or if the
-  takeover cannot mount).
+- **In place, like Codex.** While a recording runs the controls appear in the
+  composer's **own tool row**: `✕` and the live waveform on the left, the mic
+  button turning into `⏹` in place, and the model select stepping aside. Nothing
+  changes height, so the ambient stats row under the card stays put and the stop
+  button stays exactly under the microphone — no floating pill above the
+  composer. The composer's own `↑` sends the transcript once `⏹` has inserted
+  it; `Ctrl+E` does insert-and-send in one press.
 - **Question cards.** While an `ask_user_question` card occupies the composer
   (the option list with its “type your own answer” field), the same shortcut
   records and inserts the transcript into that card's answer field at the

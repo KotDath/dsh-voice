@@ -1,11 +1,11 @@
-/** Mic button (idle) and the recording pill (recording/processing/error). */
+/** Composer-seat controls: the mic/stop button and the in-row recording strip. */
 
 import * as React from 'react'
 import { getVoiceState, setVoiceState, subscribeVoice, MAX_RECORDING_SECS } from './state.ts'
 import { startRecording, cancelRecording, stopWith } from './recorder.ts'
 import { getHotkeyLabel, subscribeHotkeyConfig } from './hotkey.ts'
 import { drawWaveform } from './waveform.ts'
-import { MicIcon, XIcon, StopIcon, ArrowIcon, WarnIcon, SpinnerIcon } from './icons.tsx'
+import { MicIcon, XIcon, StopIcon, WarnIcon, SpinnerIcon } from './icons.tsx'
 import styles from './voice.module.css'
 
 interface InputActionsLike {
@@ -52,12 +52,31 @@ function useHotkeyLabel(): string {
   return label
 }
 
-/** The mic button next to the send button. */
+/**
+ * The right-hand control beside the send button. It turns into the stop button
+ * in place, so the click position never moves when a recording starts.
+ */
 export function MicButton(props: VoiceSlotProps): React.JSX.Element | null {
   const v = useVoiceState()
   const hotkey = useHotkeyLabel()
   useComposerBridge(props)
-  if (v.phase !== 'idle') return null
+
+  if (v.phase === 'starting' || v.phase === 'processing') {
+    return React.createElement('button', {
+      type: 'button',
+      className: styles.voiceMic,
+      title: 'Transcribing…',
+      disabled: true,
+    }, React.createElement(SpinnerIcon))
+  }
+  if (v.phase === 'recording') {
+    return React.createElement('button', {
+      type: 'button',
+      className: styles.voiceMic,
+      title: 'Stop and insert text',
+      onClick: () => stopWith('insert'),
+    }, React.createElement(StopIcon))
+  }
   return React.createElement('button', {
     type: 'button',
     className: styles.voiceMic,
@@ -66,13 +85,17 @@ export function MicButton(props: VoiceSlotProps): React.JSX.Element | null {
   }, React.createElement(MicIcon))
 }
 
-/** The recording pill above the composer. */
-export function RecordPill(props: VoiceSlotProps): React.JSX.Element | null {
+/**
+ * The in-row recording strip, rendered into `conversation.input.left`: cancel,
+ * the live waveform, and a status word. It adds no height of its own — the
+ * composer's row and the ambient stats row below it stay exactly where they
+ * were, which keeps the stop button under the microphone.
+ */
+export function VoiceRow(): React.JSX.Element | null {
   const v = useVoiceState()
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null)
-  useComposerBridge(props)
 
-  // Level sampling + auto-stop at MAX_RECORDING_SECS.
+  // Sample the analyser into the shared level history (the pill used to do it).
   React.useEffect(() => {
     if (v.phase !== 'recording') return
     let elapsed = 0
@@ -84,9 +107,9 @@ export function RecordPill(props: VoiceSlotProps): React.JSX.Element | null {
         rec.analyser.getByteFrequencyData(data)
         let sum = 0
         for (let i = 0; i < data.length; i++) sum += data[i]!
-        const s = getVoiceState()
-        s.levels.push(Math.min(1, (sum / data.length / 255) * 2.2))
-        if (s.levels.length > 150) s.levels.shift()
+        const state = getVoiceState()
+        state.levels.push(Math.min(1, (sum / data.length / 255) * 2.2))
+        if (state.levels.length > 150) state.levels.shift()
       }
       if (elapsed >= MAX_RECORDING_SECS) stopWith('insert')
     }, 50)
@@ -102,24 +125,50 @@ export function RecordPill(props: VoiceSlotProps): React.JSX.Element | null {
     return () => window.clearInterval(id)
   }, [v.phase])
 
-  if (v.phase === 'idle' || v.phase === 'starting') return null
+  // Codex-style row: the model select steps aside while dictating, so the
+  // strip owns the free space of the row it already lives in.
+  React.useEffect(() => {
+    const root = document.documentElement
+    const active = v.phase === 'starting' || v.phase === 'recording'
+    if (active) root.setAttribute('data-dsh-voice-recording', '')
+    else root.removeAttribute('data-dsh-voice-recording')
+    return () => root.removeAttribute('data-dsh-voice-recording')
+  }, [v.phase])
 
-  if (v.phase === 'recording') {
-    return React.createElement('div', { className: styles.voicePill },
-      React.createElement('button', { type: 'button', className: styles.voicePillBtn + ' ' + styles.voicePillCancel, title: 'Cancel recording', onClick: cancelRecording }, React.createElement(XIcon)),
-      React.createElement('canvas', { className: styles.voiceWave, ref: canvasRef, width: 720, height: 40 }),
-      React.createElement('button', { type: 'button', className: styles.voicePillBtn + ' ' + styles.voicePillStop, title: 'Stop and insert text', onClick: () => stopWith('insert') }, React.createElement(StopIcon)),
-      React.createElement('button', { type: 'button', className: styles.voicePillBtn + ' ' + styles.voicePillSend, title: 'Send', onClick: () => stopWith('send') }, React.createElement(ArrowIcon)),
-    )
-  }
+  if (v.phase === 'idle') return null
+
   if (v.phase === 'processing') {
-    return React.createElement('div', { className: styles.voicePill },
-      React.createElement('span', { className: styles.voiceStatus }, React.createElement(SpinnerIcon), 'Transcribing…'),
+    return React.createElement('div', { className: styles.voiceStrip },
+      React.createElement('span', { className: styles.voiceStripStatus },
+        React.createElement(SpinnerIcon), 'Transcribing…'),
     )
   }
-  return React.createElement('div', { className: styles.voicePill },
-    React.createElement('span', { className: styles.voiceStatus + ' ' + styles.voiceStatusErr }, React.createElement(WarnIcon)),
-    React.createElement('span', { className: styles.voiceErrText }, v.error),
-    React.createElement('button', { type: 'button', className: styles.voicePillBtn + ' ' + styles.voicePillCancel, title: 'Dismiss', onClick: () => setVoiceState({ phase: 'idle', error: '' }) }, React.createElement(XIcon)),
+
+  if (v.phase === 'error') {
+    return React.createElement('div', { className: styles.voiceStrip },
+      React.createElement('span', { className: styles.voiceStripError },
+        React.createElement(WarnIcon), React.createElement('span', null, v.error)),
+      React.createElement('button', {
+        type: 'button',
+        className: styles.voiceStripBtn,
+        title: 'Dismiss',
+        onClick: () => setVoiceState({ phase: 'idle', error: '', target: null }),
+      }, React.createElement(XIcon)),
+    )
+  }
+
+  return React.createElement('div', { className: styles.voiceStrip },
+    React.createElement('button', {
+      type: 'button',
+      className: styles.voiceStripBtn,
+      title: 'Cancel recording',
+      onClick: cancelRecording,
+    }, React.createElement(XIcon)),
+    React.createElement('canvas', {
+      ref: canvasRef,
+      className: styles.voiceStripWave,
+      width: 1200,
+      height: 24,
+    }),
   )
 }

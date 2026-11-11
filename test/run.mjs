@@ -53,7 +53,7 @@ async function main() {
   ok(clientSrc.includes('window.__ModuleLoader__.load'), 'client bundle registers via __ModuleLoader__.load')
   ok(clientSrc.includes('dsh-voice'), 'client bundle carries plugin id')
   ok(clientSrc.includes('conversation.input.right'), 'client bundle registers input.right slot')
-  ok(clientSrc.includes('conversation.input.dock'), 'client bundle registers input.dock slot')
+  ok(clientSrc.includes('conversation.input.left'), 'client bundle registers input.left slot')
   ok(clientSrc.includes('settings.section'), 'client bundle registers settings.section slot')
   ok(clientSrc.includes('/api/voice/codex-status'), 'client bundle talks to the codex-status endpoint')
   ok(clientSrc.includes('Codex — ChatGPT subscription'), 'client bundle offers the Codex provider')
@@ -91,7 +91,7 @@ async function main() {
   let factoryError = null
   try { clientExports = entries[0].factory(clientRequire) } catch (e) { factoryError = e }
   ok(factoryError === null, `client factory runs${factoryError ? `: ${factoryError.message}` : ''}`)
-  for (const name of ['VoiceSettings', 'MicButton', 'RecordPill', 'apply']) {
+  for (const name of ['VoiceSettings', 'MicButton', 'VoiceRow', 'apply']) {
     eq(typeof clientExports?.[name], 'function', `client bundle exports ${name}()`)
   }
   if (clientExports) {
