@@ -3,9 +3,9 @@
 import * as React from 'react'
 import { getVoiceState, setVoiceState, subscribeVoice, MAX_RECORDING_SECS } from './state.ts'
 import { startRecording, cancelRecording, stopWith } from './recorder.ts'
-import { getHotkeyConfig, getHotkeyLabel, subscribeHotkeyConfig } from './hotkey.ts'
+import { getHotkeyLabel, subscribeHotkeyConfig } from './hotkey.ts'
 import { drawWaveform } from './waveform.ts'
-import { MicIcon, XIcon, StopIcon, WarnIcon, SpinnerIcon } from './icons.tsx'
+import { MicIcon, XIcon, StopIcon, ArrowIcon, WarnIcon, SpinnerIcon } from './icons.tsx'
 import styles from './voice.module.css'
 
 interface InputActionsLike {
@@ -70,15 +70,11 @@ export function MicButton(props: VoiceSlotProps): React.JSX.Element | null {
     }, React.createElement(SpinnerIcon))
   }
   if (v.phase === 'recording') {
-    // Same choice as the shortcut's second press: send by default, insert when
-    // Settings → Voice → Second press says so. The composer's own send button
-    // stays disabled while the draft is empty, so this one carries the action.
-    const finish = getHotkeyConfig().action
     return React.createElement('button', {
       type: 'button',
       className: styles.voiceMic,
-      title: finish === 'send' ? 'Stop and send' : 'Stop and insert text',
-      onClick: () => stopWith(finish),
+      title: 'Stop and insert text',
+      onClick: () => stopWith('insert'),
     }, React.createElement(StopIcon))
   }
   return React.createElement('button', {
@@ -87,6 +83,25 @@ export function MicButton(props: VoiceSlotProps): React.JSX.Element | null {
     title: hotkey === '' ? 'Voice input' : 'Voice input (' + hotkey + ')',
     onClick: startRecording,
   }, React.createElement(MicIcon))
+}
+
+/**
+ * The voice send button, rendered into `conversation.input.activity` — the seat
+ * immediately left of the composer's own submit button. The resident submit is
+ * disabled while the draft is empty (which it is for the whole recording), so
+ * this is the button that sends a dictation, without taking the stop button's
+ * "insert" meaning away.
+ */
+export function VoiceSendButton(): React.JSX.Element | null {
+  const v = useVoiceState()
+  if (v.phase !== 'recording') return null
+  return React.createElement('button', {
+    type: 'button',
+    className: styles.voiceSend,
+    title: 'Send the transcript',
+    'aria-label': 'Send the transcript',
+    onClick: () => stopWith('send'),
+  }, React.createElement(ArrowIcon))
 }
 
 /**

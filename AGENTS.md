@@ -182,10 +182,13 @@ just a centered "Transcribing" label) — a full
 down out from under the microphone. The model select is hidden with
 `html[data-dsh-voice-recording] [data-slot="conversation.input.model"]`
 (`VoiceRow` sets the attribute), and `VoiceRow` also owns the analyser sampling
-and the `MAX_RECORDING_SECS` auto-stop that used to live in the pill. `⏹` runs
-the same `hotkey.action` as the shortcut's second press (send by default), so a
-recording can be sent with one click without waiting for the composer's own
-send button to leave its empty-draft disabled state. Two layout traps: a
+and the `MAX_RECORDING_SECS` auto-stop that used to live in the pill. `⏹` stays
+"stop and insert"; sending is a separate button (`VoiceSendButton`) in the
+`conversation.input.activity` seat, immediately left of the resident submit —
+that submit is disabled while the draft is empty, which it is for the whole
+recording. That seat is `single`, so the registration shadows whatever occupies
+it (only the experimental voice-input bundle does); it is wrapped in a
+`try`/`catch` because the 0.1-era type map does not know the key. Two layout traps: a
 `flex-basis: auto` strip lets the canvas' intrinsic width inflate the row (use
 `flex-basis: 0` plus a width-synced canvas), and the tool cluster sizes to its
 content, so it needs the `:has()` rule to grow while recording.

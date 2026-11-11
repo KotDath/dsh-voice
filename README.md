@@ -99,8 +99,9 @@ transcript is inserted into the draft **and sent**, exactly like `↑`.
   button turning into `⏹` in place, and the model select stepping aside. Nothing
   changes height, so the ambient stats row under the card stays put and the stop
   button stays exactly under the microphone — no floating pill above the
-  composer. The composer's own `↑` sends the transcript once `⏹` has inserted
-  it; `Ctrl+E` does insert-and-send in one press.
+  composer. `⏹` stops and inserts the transcript, and a dedicated **send**
+  button appears next to the composer's own `↑` for sending the dictation
+  straight away; `Ctrl+E` does insert-and-send in one press.
 - **Question cards.** While an `ask_user_question` card occupies the composer
   (the option list with its “type your own answer” field), the same shortcut
   records and inserts the transcript into that card's answer field at the

@@ -16,11 +16,11 @@ import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 // Type-only: pulls ui-settings' SlotMap merge (the settings.section entry).
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
-import { MicButton, VoiceRow, type VoiceSlotProps } from './components.tsx'
+import { MicButton, VoiceRow, VoiceSendButton, type VoiceSlotProps } from './components.tsx'
 import { VoiceSettings } from './settings.tsx'
 import { installHotkeyLayer, loadHotkeyConfig } from './hotkey.ts'
 
-export { MicButton, VoiceRow } from './components.tsx'
+export { MicButton, VoiceRow, VoiceSendButton } from './components.tsx'
 export { VoiceSettings } from './settings.tsx'
 export { startRecording, cancelRecording, stopWith } from './recorder.ts'
 export { getVoiceState, subscribeVoice } from './state.ts'
@@ -59,6 +59,23 @@ export function apply(ctx: ClientContext): void {
     order: 0,
     label: () => 'Voice recording',
   }, () => React.createElement(VoiceRow)))
+
+  // Send button for a dictation, in the seat just left of the composer's own
+  // submit (the resident one stays disabled while the draft is empty). The
+  // 0.1-era type map this package builds against predates that seat, while the
+  // live harness declares it — hence the structural view instead of the merge.
+  const looseSlots = slots as unknown as {
+    inject(key: string, callback: () => () => void): () => void
+    register(options: { name: string }, component: () => React.ReactElement | null): () => void
+  }
+  try {
+    looseSlots.inject('conversation.input.activity', () => looseSlots.register(
+      { name: 'conversation.input.activity' },
+      () => React.createElement(VoiceSendButton),
+    ))
+  } catch {
+    // The seat is optional: without it the shortcut's send path still works.
+  }
 
   // Settings page "Voice".
   slots.inject('settings.section', () => slots.register({
