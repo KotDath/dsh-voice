@@ -129,7 +129,7 @@ export function VoiceRow(): React.JSX.Element | null {
   // strip owns the free space of the row it already lives in.
   React.useEffect(() => {
     const root = document.documentElement
-    const active = v.phase === 'starting' || v.phase === 'recording'
+    const active = v.phase === 'starting' || v.phase === 'recording' || v.phase === 'processing'
     if (active) root.setAttribute('data-dsh-voice-recording', '')
     else root.removeAttribute('data-dsh-voice-recording')
     return () => root.removeAttribute('data-dsh-voice-recording')
@@ -138,9 +138,10 @@ export function VoiceRow(): React.JSX.Element | null {
   if (v.phase === 'idle') return null
 
   if (v.phase === 'processing') {
-    return React.createElement('div', { className: styles.voiceStrip },
-      React.createElement('span', { className: styles.voiceStripStatus },
-        React.createElement(SpinnerIcon), 'Transcribing…'),
+    // Same row, same height as the recording state: only the word in the middle
+    // changes (the composer draft above stays exactly as the user left it).
+    return React.createElement('div', { className: styles.voiceStrip + ' ' + styles.voiceStripCentered },
+      React.createElement('span', { className: styles.voiceStripStatus }, 'Transcribing'),
     )
   }
 

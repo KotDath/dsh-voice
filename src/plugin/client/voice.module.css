@@ -57,6 +57,9 @@
   align-items: center;
   gap: 8px;
 }
+.voiceStripCentered {
+  justify-content: center;
+}
 .voiceStripBtn {
   appearance: none;
   flex: none;

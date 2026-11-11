@@ -174,7 +174,9 @@ row instead of a separate pill or a composer takeover: `conversation.input.left`
 holds `✕` plus the live waveform, and the mic entry in
 `conversation.input.right` turns into `⏹` (then a spinner) in place. Nothing
 changes the card height, which is why the ambient stats row below the composer
-and the mic button's position survive a recording — a full
+and the mic button's position survive a recording (the composer draft itself is
+never touched until the transcript arrives; `processing` keeps the same row with
+just a centered "Transcribing" label) — a full
 `conversation.composer` takeover was tried and rejected: it unmounted the
 `conversation.composer.dock` row, so the seat shrank and the stop button slid
 down out from under the microphone. The model select is hidden with
