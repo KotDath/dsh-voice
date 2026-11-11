@@ -51,11 +51,13 @@
 }
 
 .voiceStrip {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-width: 0;
+  max-width: 100%;
   display: flex;
   align-items: center;
   gap: 8px;
+  overflow: hidden;
 }
 .voiceStripCentered {
   justify-content: center;
@@ -82,10 +84,11 @@
   outline-offset: 1px;
 }
 .voiceStripWave {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-width: 0;
-  width: 100%;
+  width: 0;
   height: 24px;
+  display: block;
   color: var(--dsw-alias-label-secondary);
 }
 .voiceStripStatus {
@@ -114,8 +117,11 @@
 /* Codex-style: the model select steps aside while dictating, so the strip owns
  * the free space of the row it already lives in. Nothing changes height, so the
  * stop button never moves away from under the microphone. */
-html[data-dsh-voice-recording] [data-slot="conversation.input.model"] {
-  display: none;
+/* Slot anchors carry an inline `display: contents`, hence the important. */
+html[data-dsh-voice-recording] [data-slot="conversation.input.model"],
+html[data-dsh-voice-recording] [data-slot="conversation.input.permission"],
+html[data-dsh-voice-recording] [data-slot="conversation.input.plan"] {
+  display: none !important;
 }
 
 /* ── recording status + waveform ─────────────────────────────────────────── */

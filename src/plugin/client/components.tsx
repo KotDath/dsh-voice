@@ -120,7 +120,13 @@ export function VoiceRow(): React.JSX.Element | null {
   React.useEffect(() => {
     if (v.phase !== 'recording') return
     const id = window.setInterval(() => {
-      if (canvasRef.current) drawWaveform(canvasRef.current)
+      const canvas = canvasRef.current
+      if (canvas === null) return
+      // Draw at CSS pixel density: a stretched 1200px canvas turns the bars
+      // into a dotted line and, worse, its intrinsic width inflates the row.
+      const width = Math.round(canvas.clientWidth)
+      if (width > 0 && canvas.width !== width) canvas.width = width
+      drawWaveform(canvas)
     }, 50)
     return () => window.clearInterval(id)
   }, [v.phase])
@@ -168,7 +174,7 @@ export function VoiceRow(): React.JSX.Element | null {
     React.createElement('canvas', {
       ref: canvasRef,
       className: styles.voiceStripWave,
-      width: 1200,
+      width: 720,
       height: 24,
     }),
   )
