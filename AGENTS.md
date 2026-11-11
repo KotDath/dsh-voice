@@ -118,7 +118,8 @@ src/plugin/invariant.ts
 src/plugin/generated-catalog.ts — generated from models.json (do not edit)
 src/plugin/client/index.ts     — browser half: apply(ctx), slot registrations
 src/plugin/client/{state,recorder,waveform,components,settings,hotkey,
-                       questionTarget,questionOverlay,submitSeat}.ts(x)
+                       questionTarget,questionOverlay,submitSeat,
+                       composerDom}.ts(x)
 src/plugin/client/voice.module.css
 scripts/gen-catalog.mjs        — catalog generator
 tsdown.config.ts               — node ESM + browser CJS-closure bundle
@@ -195,13 +196,19 @@ empty, `insert` (at the caret) otherwise. Borrowing it is a DOM-level job
 because the composer disables that button for an empty draft, which is exactly
 the state in which someone dictates; `disabled` is only ever rewritten by React
 when its own prop flips, so the flip has to be undone by hand and put back
-afterwards (`releaseNativeSubmit`). Both decisions — "send or insert?" at press
-time and "should it look disabled again?" at release — read the editor itself
-(`composerHasText`: the `contenteditable`'s text), never the voice store: its
-copy of the draft arrives a beat after the splice, and a wrong guess leaves the
-button stuck in the wrong state. The node is found by
-`[data-composer-card] button[aria-busy]` (the bar gives no other button that
-attribute) and marked with `data-dsh-voice-submit`. Two layout traps: a
+afterwards (`releaseNativeSubmit`).
+
+Every DOM question lives in `composerDom.ts` and reads the elements, never the
+voice store: the store's mirror of the draft arrives a beat after an edit, and
+a wrong guess leaves the button — or the splice — in the wrong state. That is
+also how the padding around a transcript is computed. Two pitfalls that cost a
+debugging round each: the submit is the **last** button of the row outside
+`[data-composer-dock]` (the model select carries `aria-busy` as well, so
+`button[aria-busy]` matched the model seat and left the arrow disabled), and
+the slot anchors are `display: contents`, so their `getBoundingClientRect()` is
+empty even when visible — measure the seat's button, not the anchor.
+
+Two layout traps: a
 `flex-basis: auto` strip lets the canvas' intrinsic width inflate the row (use
 `flex-basis: 0` plus a width-synced canvas), and the tool cluster sizes to its
 content, so it needs the `:has()` rule to grow while recording.
@@ -230,6 +237,31 @@ combinations are live at once because browsers reserve plenty of
 `Ctrl+<letter>` combinations — the Settings **Test** button reports whether a
 press actually reached the page. `test/hotkey.mjs` covers the pure helpers
 (unbound `altCombo` is the empty string, not `null`).
+
+## Verifying UI changes in a browser
+
+The pieces above are layout- and event-driven, so `npm test` cannot see them.
+The loop that does:
+
+1. An **isolated** instance, so no test message lands in the real sessions:
+   `DSH_HOME=/tmp/dsh-e2e-home` (copy `~/.dsh/.credentials.yaml` into it),
+   `dsh --profile e2e --from-default-profile web --dump-config`,
+   `dsh plugin --profile e2e add file:<repo>`,
+   then `dsh --profile e2e --port 3099 --no-open` and take the `?token=` URL
+   from its log. A `file:` install into a second profile is a **snapshot
+   copy**, so re-copy `lib/*.js` after every build (or hardlink them).
+   Its patch layer must hold a provider row and `agent-default-model`, otherwise
+   the composer cannot send and the press-path checks are meaningless.
+2. `test/ui-e2e.mjs` (`npm run test:ui`), which drives that instance with
+   Playwright and Google Chrome, stubs `POST /api/voice/transcribe` with
+   `page.route`, and reports 28 checks plus screenshots: the resident submit is
+   borrowed and enabled while recording, an empty draft sends, a non-empty
+   draft is spliced **at the caret** with the right spacing, `⏹` inserts
+   without sending, cancel hands the button back and leaves the model seat
+   interactive, and `Ctrl+E` twice behaves like the submit press. It needs
+   `playwright-core` (`npm i -D playwright-core`) — or point
+   `DSH_VOICE_E2E_PLAYWRIGHT` at a scratch install and keep the dependency out
+   of the package.
 
 ## Security rules (do not regress)
 

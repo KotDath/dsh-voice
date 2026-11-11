@@ -1,6 +1,7 @@
 /** Microphone capture + finishing (stop → transcribe → insert/send). */
 
 import { getVoiceState, setVoiceState, subscribeVoice, type InsertSpan, type VoiceRec } from './state.ts'
+import { composerCard, composerText } from './composerDom.ts'
 
 export async function apiCall<T>(path: string, body?: unknown): Promise<T> {
   let res: Response
@@ -179,12 +180,12 @@ export async function finish(rec: VoiceRec, mode: 'insert' | 'send'): Promise<vo
       return
     }
     let span = getVoiceState().span
-    let spliced = span !== null && actions.insertText(padTranscript(draftOf(), span, text), span)
+    let spliced = span !== null && actions.insertText(padTranscript(composerText(composerCard()), span, text), span)
     if (!spliced) {
       // The draft moved on while the audio was in flight (the user kept typing):
       // take the live caret instead of dumping the text at the end.
       span = actions.captureInsertion()
-      spliced = actions.insertText(padTranscript(draftOf(), span, text), span)
+      spliced = actions.insertText(padTranscript(composerText(composerCard()), span, text), span)
     }
     if (!spliced) {
       setVoiceState({ phase: 'error', error: 'Could not insert the transcript' })
@@ -199,8 +200,3 @@ export async function finish(rec: VoiceRec, mode: 'insert' | 'send'): Promise<vo
   }
 }
 
-/** The composer draft as the voice store last saw it (empty when unknown). */
-function draftOf(): string {
-  const input = getVoiceState().input
-  return input !== null && typeof input.draft === 'string' ? input.draft : ''
-}

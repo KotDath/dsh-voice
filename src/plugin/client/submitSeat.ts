@@ -24,45 +24,16 @@
 
 import { getVoiceState, subscribeVoice } from './state.ts'
 import { requestFinish } from './recorder.ts'
-
-/** Marks the borrowed submit button. */
-const OWNED = 'data-dsh-voice-submit'
-
-/** The resident submit is the only button the composer bar gives an `aria-busy`. */
-const SUBMIT = 'button[aria-busy]'
-
-/** The composer's text editor (a Lexical contenteditable). */
-const EDITOR = '[contenteditable="true"]'
+import { composerCard, composerHasText, findNativeSubmit, OWNED } from './composerDom.ts'
 
 let owned: HTMLButtonElement | null = null
-
-/** The visible composer card (a session keeps the previous one mounted). */
-function liveComposerCard(): Element | null {
-  for (const card of Array.from(document.querySelectorAll('[data-composer-card]'))) {
-    const rect = card.getBoundingClientRect()
-    if (rect.width > 0 && rect.height > 0) return card
-  }
-  return null
-}
-
-/**
- * Whether the composer draft holds any text — reference chips included, since
- * they render as text inside the same editor.
- * @param card - the composer card, or null when it is not on screen.
- * @returns true when something would be sent.
- */
-export function composerHasText(card: Element | null): boolean {
-  const editor = card === null ? null : card.querySelector(EDITOR)
-  if (editor === null) return false
-  return (editor.textContent ?? '').trim() !== ''
-}
 
 /**
  * Enable the composer's submit button and mark it as ours.
  * @param card - the visible composer card, or null when it is not on screen.
  */
-export function grabNativeSubmit(card: Element | null): void {
-  const button = card === null ? null : card.querySelector<HTMLButtonElement>(SUBMIT)
+export function grabNativeSubmit(card: Element | null = composerCard()): void {
+  const button = findNativeSubmit(card)
   if (button === null) { releaseNativeSubmit(); return }
   if (button !== owned) releaseNativeSubmit()
   owned = button
@@ -85,7 +56,7 @@ export function releaseNativeSubmit(): void {
 
 /** What a press on the borrowed submit means right now. */
 export function submitPressMode(): 'insert' | 'send' {
-  const card = owned?.closest('[data-composer-card]') ?? liveComposerCard()
+  const card = owned?.closest('[data-composer-card]') ?? composerCard()
   return composerHasText(card) ? 'insert' : 'send'
 }
 
@@ -113,11 +84,11 @@ export function installSubmitLayer(): () => void {
 
   const sync = (): void => {
     if (getVoiceState().phase === 'recording') {
-      grabNativeSubmit(liveComposerCard())
+      grabNativeSubmit()
       // The composer disables it again whenever the draft passes through empty;
       // keep it awake for as long as the recording lasts.
       if (timer === null) {
-        timer = window.setInterval(() => grabNativeSubmit(liveComposerCard()), 250)
+        timer = window.setInterval(() => grabNativeSubmit(), 250)
       }
       return
     }

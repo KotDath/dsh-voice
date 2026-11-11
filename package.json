@@ -41,11 +41,12 @@
     "cordis.patch.yml"
   ],
   "scripts": {
-    "prepack": "npm run build",
     "build": "node scripts/gen-catalog.mjs && tsc -p tsconfig.json && tsdown -c tsdown.config.ts",
-    "typecheck": "tsc --noEmit",
+    "prepack": "npm run build",
     "test": "node test/run.mjs && node test/codex.mjs && node test/hotkey.mjs",
-    "test:live": "DSH_VOICE_LIVE=1 node test/codex.mjs"
+    "test:live": "DSH_VOICE_LIVE=1 node test/codex.mjs",
+    "test:ui": "node test/ui-e2e.mjs",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
