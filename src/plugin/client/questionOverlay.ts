@@ -5,7 +5,8 @@
  * composer fallback: while an `ask_user_question` card occupies the composer
  * seat the whole composer stack is replaced, so the pill is not mounted. This
  * overlay is a plain DOM element (no React root, no new bundle externals) that
- * floats just above the card and offers Cancel / Stop.
+ * floats just above the card and offers the same trio the composer has: cancel,
+ * stop-and-insert (`⏹`) and stop-insert-and-send (`↑`).
  *
  * It is only ever created while a recording targets the question card.
  *
@@ -52,6 +53,8 @@ export function startQuestionOverlay(): QuestionOverlay {
       'display:grid', 'place-items:center', 'background:transparent', 'color:inherit',
       'font:inherit', 'font-size:14px', 'cursor:pointer',
     ].join(';')
+    element.addEventListener('mouseenter', () => { element.style.background = 'var(--dsw-alias-interactive-bg-hover, rgba(255,255,255,.1))' })
+    element.addEventListener('mouseleave', () => { element.style.background = 'transparent' })
     return element
   }
 
@@ -62,7 +65,10 @@ export function startQuestionOverlay(): QuestionOverlay {
 
   const cancel = button('✕', 'Cancel recording')
   const stop = button('⏹', 'Stop and insert into your answer')
-  root.append(cancel, dot, label, stop)
+  stop.setAttribute('data-dsh-voice-action', 'insert')
+  const send = button('↑', 'Stop, insert into your answer and send it')
+  send.setAttribute('data-dsh-voice-action', 'send')
+  root.append(cancel, dot, label, stop, send)
   document.body.appendChild(root)
 
   const dismiss = (): void => {
@@ -73,6 +79,9 @@ export function startQuestionOverlay(): QuestionOverlay {
   cancel.addEventListener('click', dismiss)
   stop.addEventListener('click', () => {
     if (getVoiceState().phase === 'recording') stopWith('insert')
+  })
+  send.addEventListener('click', () => {
+    if (getVoiceState().phase === 'recording') stopWith('send')
   })
 
   /** Keep the indicator right above the card the question occupies. */

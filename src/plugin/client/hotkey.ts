@@ -364,10 +364,11 @@ export function installHotkeyLayer(): () => void {
     }
 
     const state = getVoiceState()
-    // A question card replaces the composer: its answer field becomes the target
-    // and the transcript is inserted there, never submitted.
+    // A question card replaces the composer: its answer field becomes the target.
+    // The configured second-press action applies there exactly as it does in the
+    // composer — `send` inserts and submits the answer, `insert` only inserts.
     const field = questionAnswerField()
-    const finish: HotkeyFinish = field === null ? config.action : 'insert'
+    const finish: HotkeyFinish = config.action
     const reason = ignoreReason({
       repeat: event.repeat,
       composing: event.isComposing,

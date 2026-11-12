@@ -106,11 +106,12 @@ inserted at the caret when it is not.
   `↑`, which the plugin enables while a recording is live (it is disabled for an
   empty draft, which is exactly the state you dictate in).
 - **Question cards.** While an `ask_user_question` card occupies the composer
-  (the option list with its “type your own answer” field), the same shortcut
-  records and inserts the transcript into that card's answer field at the
-  caret — it never submits the answer, so you can review it and press Enter
-  yourself. The composer's pill is not mounted in that presentation, so a small
-  floating indicator (Cancel / Stop) appears just above the card instead.
+  (the option list with its “type your own answer” field), dictation works the
+  same way: the transcript is inserted at the caret of that field, and the mode
+  decides the rest — `⏹` only fills the answer in, `↑` fills it in and presses
+  the card's own Submit, and `Ctrl+E` follows **Settings → Voice → Second
+  press**. The composer's row is not mounted in that presentation, so a small
+  indicator appears just above the card with the same three controls.
 
 ## Architecture
 

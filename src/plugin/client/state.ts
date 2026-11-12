@@ -20,6 +20,8 @@ export interface VoiceRec {
  */
 export interface VoiceTarget {
   insert(text: string): void
+  /** Send the target's own answer (the card's Submit); absent = insert only. */
+  submit?(): void
 }
 
 /**

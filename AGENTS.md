@@ -226,11 +226,18 @@ enabled `textarea`. That pairing is unambiguous because the chat composer is a
 Lexical `contenteditable`, while the card's "your own answer" field is a real
 textarea. With a target, the transcript is inserted at the caret through the
 prototype `value` setter plus a synthetic `input` event (the field is React
-controlled) and the answer is **not** submitted — the card's own Enter/Send
-stays the user's action. Recording feedback comes from
-`questionOverlay.ts`, a plain-DOM floating pill (no React root, no new bundle
-externals) positioned above the seat; it is destroyed as soon as the target
-clears. `spliceAtCaret()` is the pure, tested half of that insertion.
+controlled), and the recording's mode then decides exactly what it decides in
+the composer: `insert` leaves the answer for the user, `send` hands it to the
+card's own primary action. That action is the **last button of the card** —
+Submit on the final question, Next before it, which is the one rule that avoids
+depending on a localized label — and it is still `disabled` for one render
+because `answered(draft)` has not caught up with the synthetic `input` event, so
+`submitAnswer()` retries the click on animation frames. `Ctrl+E` follows
+`hotkey.action` here too (it used to be forced to `insert`). Recording feedback
+comes from `questionOverlay.ts`, a plain-DOM pill (no React root, no new bundle
+externals) with the same trio as the composer — `✕`, `⏹` (`data-dsh-voice-action="insert"`)
+and `↑` (`…="send"`) — positioned above the seat; it is destroyed as soon as the
+target clears. `spliceAtCaret()` is the pure, tested half of the insertion.
 
 Config: `hotkey.combo` / `hotkey.altCombo` / `hotkey.action` in
 `.dsh-voice/state.json`. The host canonicalizes both combinations

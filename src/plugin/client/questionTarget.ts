@@ -16,6 +16,8 @@
  * @module dsh-voice/client/questionTarget
  */
 
+import type { VoiceTarget } from './state.ts'
+
 /** A textarea's caret-insertion inputs, structurally typed for the Node tests. */
 export interface CaretLike {
   value: string
@@ -84,15 +86,56 @@ export function insertIntoField(field: HTMLTextAreaElement, text: string): boole
 }
 
 /**
- * Build a recording target for the question card, so `finish()` inserts there.
+ * The card's own primary action: Submit on the last question, Next before it.
+ * It is the last button of the card, which is a rule we can state without
+ * knowing the localized label.
+ * @param field - the answer textarea of the same card.
+ * @returns the button, or null when the card is gone.
+ */
+export function questionSubmitButton(field: HTMLTextAreaElement): HTMLButtonElement | null {
+  const card = field.closest('[data-question-key]')
+  if (card === null) return null
+  const buttons = Array.from(card.querySelectorAll<HTMLButtonElement>('button'))
+  return buttons.length === 0 ? null : buttons[buttons.length - 1]!
+}
+
+/**
+ * Click the card's own submit, waiting for it to wake up.
+ *
+ * The transcript reaches React as an `input` event, so for one render the
+ * button is still disabled (`!answered(draft)`); the click is retried on the
+ * next animation frames instead of being lost.
+ * @param field - the answer textarea whose answer should be sent.
+ * @param frames - how many frames to wait for the button to enable.
+ * @returns nothing; the click happens asynchronously.
+ */
+export function submitAnswer(field: HTMLTextAreaElement, frames = 20): void {
+  if (typeof window === 'undefined') return
+  const attempt = (left: number): void => {
+    const live = questionAnswerField() ?? field
+    const button = questionSubmitButton(live)
+    if (button === null) return
+    if (!button.disabled) { button.click(); return }
+    if (left <= 0) return
+    window.requestAnimationFrame(() => attempt(left - 1))
+  }
+  attempt(frames)
+}
+
+/**
+ * Build a recording target for the question card, so `finish()` inserts there
+ * and, on the send path, hands the answer to the card's own Submit.
  * @param field - the answer textarea found when the recording started.
  * @returns a target whose insertion re-resolves the field when the card re-rendered.
  */
-export function questionTarget(field: HTMLTextAreaElement): { insert(text: string): void } {
+export function questionTarget(field: HTMLTextAreaElement): VoiceTarget {
   return {
     insert(text: string): void {
       const live = questionAnswerField() ?? field
       insertIntoField(live, text)
+    },
+    submit(): void {
+      submitAnswer(questionAnswerField() ?? field)
     },
   }
 }
