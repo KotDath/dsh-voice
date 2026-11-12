@@ -257,11 +257,11 @@ The loop that does:
    the composer cannot send and the press-path checks are meaningless.
 2. `test/ui-e2e.mjs` (`npm run test:ui`), which drives that instance with
    Playwright and Google Chrome, stubs `POST /api/voice/transcribe` with
-   `page.route`, and reports 28 checks plus screenshots: the resident submit is
+   `page.route`, and reports 31 checks plus screenshots: the resident submit is
    borrowed and enabled while recording, an empty draft sends, a non-empty
-   draft is spliced **at the caret** with the right spacing, `⏹` inserts
-   without sending, cancel hands the button back and leaves the model seat
-   interactive, and `Ctrl+E` twice behaves like the submit press. It needs
+   draft is spliced **at the caret** and sent with the right spacing, `⏹`
+   inserts without sending, cancel hands the button back and leaves the model
+   seat interactive, and `Ctrl+E` twice behaves like the submit press. It needs
    `playwright-core` (`npm i -D playwright-core`) — or point
    `DSH_VOICE_E2E_PLAYWRIGHT` at a scratch install and keep the dependency out
    of the package.
