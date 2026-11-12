@@ -157,35 +157,24 @@ const editor2 = card2.locator('[contenteditable="true"]').first()
 const mic2 = card2.locator('button[class*="voiceMic"]').first()
 const primary2 = card2.locator('button').last()
 
-// ── 4. dictation into a non-empty draft goes to the caret, not the end ─────
+// ── 4. the stop button splices into a non-empty draft, at the caret ────────
 await editor2.click()
 await page.keyboard.type('aaa bbb')
-await page.keyboard.press('ArrowLeft')
-await page.keyboard.press('ArrowLeft')
-await page.keyboard.press('ArrowLeft')
+for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowLeft')
 await mic2.click()
 await page.waitForTimeout(1200)
 s = await state()
 ok(s.primaryDisabled === false, 'draft+recording: the native send is active')
-const dbg = await page.evaluate(() => {
-  const cards = Array.from(document.querySelectorAll('[data-composer-card]'))
-  const visible = cards.filter((c) => c.getBoundingClientRect().width > 0)
-  const ed = visible[visible.length - 1]?.querySelector('[contenteditable="true"]')
-  return { cards: cards.length, editors: visible[visible.length - 1]?.querySelectorAll('[contenteditable="true"]').length, text: ed?.textContent ?? null, html: (ed?.innerHTML ?? '').slice(0, 120) }
-})
-console.log('[debug] draft dom:', JSON.stringify(dbg))
-const before = await card2.locator('[contenteditable="true"]').first().innerText()
-ok(before.includes('aaa bbb'), 'draft+recording: the typed draft is untouched while recording', JSON.stringify(before))
+const before = (await card2.locator('[contenteditable="true"]').first().innerText()).trim()
+ok(before === 'aaa bbb', 'draft+recording: the typed draft is untouched while recording', JSON.stringify(before))
 await shot('13-recording-with-draft')
 
-
-await card2.locator('[data-dsh-voice-submit]').click()
+await card2.locator('button[title="Stop and insert text"]').click()
 await page.waitForTimeout(2500)
 const spliced = (await card2.locator('[contenteditable="true"]').first().innerText()).trim()
-ok(spliced === `aaa ${TRANSCRIPT} bbb`, 'draft: the transcript was spliced at the caret', JSON.stringify(spliced))
-ok(transcribeCalls === 2, 'draft: press did not send (insert-only path)', `calls=${transcribeCalls}`)
+ok(spliced === `aaa ${TRANSCRIPT} bbb`, 'stop button: spliced at the caret, not at the end', JSON.stringify(spliced))
+ok(transcribeCalls === 2, 'stop button: insert-only, nothing was sent', `calls=${transcribeCalls}`)
 await shot('14-inserted')
-
 
 // ── 5. cancel leaves the composer exactly as it was ───────────────────────
 await mic2.click()
@@ -202,25 +191,36 @@ ok(s.modelDisabled === false, 'cancel: the model select is interactive again', `
 ok(s.primaryDisabled === false, 'cancel: the draft still holds text, so the send stays enabled')
 await shot('15-after-cancel')
 
-
-// ── 6. ⏹ inserts without sending, even with an empty draft ────────────────
+// ── 6. the send button sends, draft or not ────────────────────────────────
 await card2.locator('[contenteditable="true"]').first().click()
 await page.keyboard.press('Control+a')
 await page.keyboard.press('Delete')
 await page.waitForTimeout(400)
-const cleared = (await card2.locator('[contenteditable="true"]').first().innerText()).trim()
-ok(cleared === '', 'setup: the draft was cleared before the stop-button case', JSON.stringify(cleared))
+await page.keyboard.type('черновик')
+const draftBefore = (await card2.locator('[contenteditable="true"]').first().innerText()).trim()
+ok(draftBefore === 'черновик', 'setup: a non-empty draft for the send case', JSON.stringify(draftBefore))
+await mic2.click()
+await page.waitForTimeout(1200)
+await card2.locator('[data-dsh-voice-submit]').click()
+await page.waitForTimeout(2800)
+const afterDraftSend = await state()
+ok(transcribeCalls === 3, 'send with a draft: transcribed once', `calls=${transcribeCalls}`)
+ok(afterDraftSend.text === '', 'send with a draft: the composer was submitted, not just filled', JSON.stringify(afterDraftSend.text))
+const sentBody = await page.locator('body').innerText()
+ok(sentBody.includes(`черновик ${TRANSCRIPT}`), 'send with a draft: the whole draft, transcript included, went out')
+await shot('16-sent-with-draft')
+
+// ── 7. ⏹ inserts without sending, even with an empty draft ────────────────
+await card2.locator('[contenteditable="true"]').first().click()
 await mic2.click()
 await page.waitForTimeout(1200)
 await card2.locator('button[title="Stop and insert text"]').click()
 await page.waitForTimeout(2500)
 const inserted = (await card2.locator('[contenteditable="true"]').first().innerText()).trim()
-ok(inserted === TRANSCRIPT, 'stop button: inserted without sending', JSON.stringify(inserted))
-ok(transcribeCalls === 3, 'stop button: one more transcription only')
-await shot('16-stop-insert')
+ok(inserted === TRANSCRIPT, 'stop button: inserted into an empty draft without sending', JSON.stringify(inserted))
+ok(transcribeCalls === 4, 'stop button: one more transcription only')
 
-
-// ── 7. Ctrl+E twice sends, like a press on the submit button ──────────────
+// ── 8. Ctrl+E twice sends, like a press on the submit button ──────────────
 await card2.locator('[contenteditable="true"]').first().click()
 await page.keyboard.press('Control+a')
 await page.keyboard.press('Delete')
@@ -232,7 +232,7 @@ ok(s.recording === true, 'hotkey: Ctrl+E starts a recording')
 await page.keyboard.press('Control+e')
 await page.waitForTimeout(2500)
 const hotkeyBody = await page.locator('body').innerText()
-ok(transcribeCalls === 4, 'hotkey: the second press transcribed', `calls=${transcribeCalls}`)
+ok(transcribeCalls === 5, 'hotkey: the second press transcribed', `calls=${transcribeCalls}`)
 ok(hotkeyBody.includes(TRANSCRIPT), 'hotkey: the transcript was sent')
 await shot('17-hotkey-sent')
 

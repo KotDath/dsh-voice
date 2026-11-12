@@ -12,6 +12,11 @@
  * `disabled` is a DOM property React writes only when its *prop* flips, so
  * clearing it here survives re-renders (and React re-applies it whenever the
  * draft really does change between empty and not). The attribute
+ * A press on it always means "send": the transcript is spliced in at the caret
+ * and the resulting draft goes out, whether it was empty or not. Inserting
+ * without sending is the stop button's job (`⏹`) — two buttons that do the same
+ * thing would make the word "send" a lie.
+ *
  * `data-dsh-voice-submit` marks the borrowed node so the press handler can
  * recognise it without depending on hashed CSS-module class names.
  *
@@ -54,12 +59,6 @@ export function releaseNativeSubmit(): void {
   button.disabled = !composerHasText(button.closest('[data-composer-card]'))
 }
 
-/** What a press on the borrowed submit means right now. */
-export function submitPressMode(): 'insert' | 'send' {
-  const card = owned?.closest('[data-composer-card]') ?? composerCard()
-  return composerHasText(card) ? 'insert' : 'send'
-}
-
 /**
  * Attach the click takeover and the recording-phase housekeeping.
  * @returns disposer that removes the listener and hands the button back.
@@ -79,7 +78,7 @@ export function installSubmitLayer(): () => void {
     event.preventDefault()
     event.stopPropagation()
     event.stopImmediatePropagation()
-    requestFinish(submitPressMode())
+    requestFinish('send')
   }
 
   const sync = (): void => {

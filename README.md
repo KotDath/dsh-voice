@@ -12,8 +12,8 @@ Clicking it starts recording in the composer's own tool row:
 - **✕** — cancel the recording;
 - **⏹** — stop, transcribe and insert the text at the caret (without sending);
 - **↑** — the composer's own send button: it wakes up while you dictate, and
-  pressing it transcribes first — sending right away when the input is empty,
-  inserting at the caret when it already holds text.
+  pressing it transcribes first, splices the text in at the caret and sends the
+  whole draft — the one you had typed included.
 
 The waveform is a row of vertical bars: fresh signal arrives on the right,
 history fades left into a dim dotted baseline (like ChatGPT's voice mode).
@@ -74,8 +74,7 @@ dsh plugin --profile web remove dsh-voice
    downloadable with one click ("Download engine", releases built by CI).
 2. Pick a model from the catalog and press **Download** if it is not marked ✓.
 3. Use the mic button next to the send button in the composer.
-4. Record → `✕` cancel / `⏹` insert at the caret / `↑` send (or insert when the
-   input is not empty).
+4. Record → `✕` cancel / `⏹` insert at the caret / `↑` insert and send.
 
 ### Keyboard activation
 

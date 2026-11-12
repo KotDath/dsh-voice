@@ -152,10 +152,10 @@ Endpoints:
 The layer lives in `src/plugin/client/hotkey.ts` and is installed from the
 client `apply()` inside `ctx.effect()`. Semantics: the first press calls
 `startRecording()`, the second one finishes it exactly like a press on the
-composer's own submit button (`submitPressMode()`: send for an empty draft,
-insert at the caret otherwise); `starting` defers the finish until the recorder
-exists, `processing` is ignored, `error` restarts. `action: 'insert'` (Settings →
-Voice → Second press) switches the finish to insert-only.
+composer's own submit button — splice at the caret, then send; `starting` defers
+the finish until the recorder exists, `processing` is ignored, `error` restarts.
+`action: 'insert'` (Settings → Voice → Second press) switches the finish to
+insert-only, i.e. the `⏹` path.
 
 Why it does not use `ctx.shortcuts`: the Harness command registry validates
 defaults with `isWebBindingAllowed`/`bindingIssue`, and on **Web/Linux** only
@@ -191,8 +191,11 @@ and the `MAX_RECORDING_SECS` auto-stop that used to live in the pill. `⏹` stay
 registered (a `conversation.input.activity` seat occupant was tried and
 rejected: two arrows side by side): `submitSeat.ts` enables the resident submit
 in place while a recording is live and swallows its press in a capture-phase
-`click` listener, so the transcript is what goes out — `send` when the draft is
-empty, `insert` (at the caret) otherwise. Borrowing it is a DOM-level job
+`click` listener, so the transcript is what goes out — always as a send: the
+text is spliced in at the caret and the resulting draft (which may already hold
+what the user typed) is submitted. "Insert without sending" belongs to `⏹`
+alone; when both buttons only inserted, the word "send" on the arrow was a lie
+(and the two were indistinguishable). Borrowing it is a DOM-level job
 because the composer disables that button for an empty draft, which is exactly
 the state in which someone dictates; `disabled` is only ever rewritten by React
 when its own prop flips, so the flip has to be undone by hand and put back
