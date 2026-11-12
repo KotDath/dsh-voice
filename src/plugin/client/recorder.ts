@@ -171,9 +171,6 @@ export async function finish(rec: VoiceRec, mode: 'insert' | 'send'): Promise<vo
     if (target !== null) {
       target.insert(text)
       setVoiceState({ phase: 'idle', target: null, span: null })
-      // Same contract as the composer: `⏹` (insert) leaves the answer for the
-      // user, the send path hands it to the card's own Submit.
-      if (mode === 'send') target.submit?.()
       return
     }
 
