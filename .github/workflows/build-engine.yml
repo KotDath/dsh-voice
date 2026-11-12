@@ -58,8 +58,13 @@ jobs:
             asset: transcribe-cli-linux-x86_64
           - os: ubuntu-24.04-arm
             asset: transcribe-cli-linux-arm64
-          - os: macos-14
+          # `macos-14` (the arm64 image) answers "configuration
+          # 'macos-14-arm64-us-default' is not supported" for this account, so
+          # Apple Silicon is cross-compiled on the Intel image: Xcode's clang
+          # targets arm64 fine, and the asset is identical either way.
+          - os: macos-15-intel
             asset: transcribe-cli-macos-arm64
+            arch: arm64
           - os: macos-15-intel
             asset: transcribe-cli-macos-x86_64
           - os: windows-latest
@@ -92,6 +97,7 @@ jobs:
           -DTRANSCRIBE_BUILD_TOOLS=OFF
           -DTRANSCRIBE_BUILD_EXAMPLES=ON
           -DTRANSCRIBE_USE_SYSTEM_BLAS=OFF
+          ${{ matrix.arch && format('-DCMAKE_OSX_ARCHITECTURES={0}', matrix.arch) || '' }}
 
       - name: Build transcribe-cli
         working-directory: transcribe.cpp
